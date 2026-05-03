@@ -10,6 +10,8 @@ spec:
     repoURL: https://github.com/sanderdewitte/vultr-kubernetes-platform.git
     targetRevision: main
     path: platform
+    directory:
+      recurse: true
 
   destination:
     server: https://kubernetes.default.svc
