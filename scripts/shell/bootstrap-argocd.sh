@@ -30,23 +30,26 @@ ROLLOUT_TIMEOUT="300s"
 # Logging helpers
 # =========================
 
+capitalize_first() {
+  sed 's/^./\U&/'
+}
+
 log() {
-  printf '[%s] %s\n' "$SCRIPT_NAME" "$*"
+  local msg
+  msg="$(printf '%s' "$*" | capitalize_first)"
+  printf '[%s] %s\n' "$SCRIPT_NAME" "$msg"
 }
 
 fail() {
-  printf '[%s] ERROR: %s\n' "$SCRIPT_NAME" "$*" >&2
+  local msg
+  msg="$(printf '%s' "$*" | capitalize_first)"
+  printf '[%s] ERROR: %s\n' "$SCRIPT_NAME" "$msg" >&2
   exit 1
-}
-
-capitalize_first() {
-  sed 's/^./\U&/'
 }
 
 log_multiline() {
   local line
   while IFS= read -r line; do
-    line="$(printf '%s\n' "$line" | capitalize_first)"
     log "$line"
   done
 }
