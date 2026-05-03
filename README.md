@@ -167,7 +167,7 @@ mkdir -p ~/.config/vultr-cli && touch ~/.config/vultr-cli/vultr-cli.yaml
 docker run --rm -e VULTR_API_KEY -v "$HOME/.config/vultr-cli/vultr-cli.yaml:/root/.vultr-cli.yaml:ro" vultr/vultr-cli:latest kubernetes versions
 ```
 
-Select the latest version (recommended) and update:
+Select the latest version (_recommended_) and update:
 
 ```bash
 infra/Pulumi.prd.yaml
@@ -228,7 +228,7 @@ Notes:
 - The API key is stored as an encrypted secret in `Pulumi.prd.yaml`
 - This file can be committed safely, as Pulumi encrypts the value
 
-#### Option 2: Environment variable (recommended)
+#### Option 2: Environment variable (_recommended_)
 
 ```bash
 export VULTR_API_KEY=<VULTR_API_KEY>
@@ -383,7 +383,7 @@ git branch -M main
 git push -u origin main
 ```
 
-#### Option 2: GitHub CLI (recommended)
+#### Option 2: GitHub CLI (_recommended_)
 
 If the GitHub CLI (gh) is installed, the repository can be created and pushed in a single step after commit.
 
