@@ -15,6 +15,7 @@ The platform is designed to be simple, reproducible, cost-conscious and easy to 
 
 ## Target Architecture
 
+```text
 Vultr DNS
   ↓
 VKE worker node public IP
@@ -22,6 +23,7 @@ VKE worker node public IP
 Traefik ingress controller
   ↓
 Kubernetes services and applications
+```
 
 ## Main Components
 
@@ -35,32 +37,34 @@ Kubernetes services and applications
 
 ## Deployment Model
 
+```text
 GitHub Repository
 ├── infra/      → Pulumi
 ├── platform/   → Kubernetes platform components
 └── apps/       → Applications
+```
 
-GitHub Actions
-  → Runs Pulumi
+GitHub Actions  
+  → Runs Pulumi  
   → Creates/updates Vultr infrastructure
 
-Argo CD
+Argo CD  
   → Syncs platform/ and apps/ into Kubernetes
 
 ### Flow
 
-1. Infrastructure change
-   → Commit to infra/
-   → Pulumi preview/up
-   → Vultr updated
+1. Infrastructure change  
+   → Commit to infra/  
+   → Pulumi preview/up  
+   → Vultr updated  
 
-2. Platform change
-   → Commit to platform/
-   → Argo CD syncs
+2. Platform change  
+   → Commit to platform/  
+   → Argo CD syncs  
 
-3. Application change
-   → Commit to apps/
-   → Argo CD deploys
+3. Application change  
+   → Commit to apps/  
+   → Argo CD deploys  
 
 ## Initial Cluster
 
@@ -88,6 +92,7 @@ Before using this repository, ensure the following tools are installed.
 - uv (Python package and virtual environment manager)
 - Pulumi CLI
 - Git
+- (Optional) GitHub CLI (gh) for repository creation
 - (Optional) vultr-cli for querying Kubernetes versions
 
 ### Installation
