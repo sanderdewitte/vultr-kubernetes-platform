@@ -199,8 +199,9 @@ pulumi stack select prd
 
 ### Set Vultr API Key
 
-For deployments one needs to authenticate with an API key.  
-There are two ways to provide the Vultr API keyi to Pulumi.
+For deployments one needs to authenticate with an API key.
+
+There are two ways to provide the Vultr API key to Pulumi.
 
 #### Option 1: Pulumi configuration (encrypted)
 
