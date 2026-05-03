@@ -1,0 +1,7 @@
+{
+  "workbench.tree.indent": 16,
+  "python.venvPath": "${workspaceFolder}/infra",
+  "python.defaultInterpreterPath": "${workspaceFolder}/infra/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python-envs.pythonProjects": []
+}

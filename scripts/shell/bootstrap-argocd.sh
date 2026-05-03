@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# =========================
+# Script metadata
+# =========================
+
+SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+ROOT_APPLICATION_FILE="${REPO_ROOT}/platform/bootstrap/root-application.yaml"
+
+# =========================
+# Argo CD configuration
+# =========================
+
+ARGOCD_NAMESPACE="argocd"
+ARGOCD_VERSION="v3.2.0"
+ARGOCD_INSTALL_URL="https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
+
+# =========================
+# Runtime defaults
+# =========================
+
+FORCE_REINSTALL="false"
+BOOTSTRAP_ROOT_APP="false"
+ROLLOUT_TIMEOUT="300s"
+
+# =========================
+# Logging helpers
+# =========================
+
+log() {
+  printf '[%s] %s\n' "$SCRIPT_NAME" "$*"
+}
+
+fail() {
+  printf '[%s] ERROR: %s\n' "$SCRIPT_NAME" "$*" >&2
+  exit 1
+}
+
+capitalize_first() {
+  sed 's/^./\U&/'
+}
+
+log_multiline() {
+  local line
+  while IFS= read -r line; do
+    line="$(printf '%s\n' "$line" | capitalize_first)"
+    log "$line"
+  done
+}
+
+# =========================
+# Argument parsing
+# =========================
+
+usage() {
+  cat <<EOF
+Usage: $SCRIPT_NAME [options]
+
+Options:
+  --bootstrap-root-app  Apply the Argo CD root application
+  --force-reinstall     Re-apply the Argo CD install manifest even if Argo CD exists
+  --timeout VALUE       Rollout timeout for argocd-server (e.g. 300s, 10m)
+  -h, --help            Show this help
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --bootstrap-root-app)
+        BOOTSTRAP_ROOT_APP="true"
+        shift
+        ;;
+      --force-reinstall)
+        FORCE_REINSTALL="true"
+        shift
+        ;;
+      --timeout)
+        [[ $# -ge 2 ]] || fail "Missing value for --timeout"
+        ROLLOUT_TIMEOUT="$2"
+        shift 2
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        fail "Unknown argument: $1"
+        ;;
+    esac
+  done
+}
+
+# =========================
+# Utility helpers
+# =========================
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"
+}
+
+require_env() {
+  local var_name="$1"
+  [[ -n "${!var_name:-}" ]] || fail "Required environment variable is not set: ${var_name}"
+}
+
+namespace_exists() {
+  kubectl get namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1
+}
+
+argocd_installed() {
+  kubectl get deployment argocd-server -n "$ARGOCD_NAMESPACE" >/dev/null 2>&1
+}
+
+# =========================
+# Core functions
+# =========================
+
+set_working_directory() {
+  local start_dir
+  start_dir="$(pwd)"
+  log "Starting in directory: ${start_dir}"
+  cd "$REPO_ROOT"
+  log "Working directory: $REPO_ROOT"
+}
+
+check_requirements() {
+  log "Checking requirements"
+  require_command kubectl
+  require_command curl
+  require_env VULTR_API_KEY
+  require_env KUBECONFIG
+  [[ -f "$KUBECONFIG" ]] || fail "KUBECONFIG file not found: $KUBECONFIG"
+}
+
+check_cluster_access() {
+  local context
+  log "Checking Kubernetes cluster access"
+  kubectl cluster-info >/dev/null
+  context="$(kubectl config current-context)"
+  log "Current Kubernetes context: ${context}"
+}
+
+ensure_namespace() {
+  if namespace_exists; then
+    log "Namespace '${ARGOCD_NAMESPACE}' already exists"
+  else
+    log "Creating namespace: ${ARGOCD_NAMESPACE}"
+    kubectl create namespace "$ARGOCD_NAMESPACE"
+  fi
+}
+
+install_argocd() {
+  if argocd_installed && [[ "$FORCE_REINSTALL" != "true" ]]; then
+    log "Argo CD already installed in namespace '${ARGOCD_NAMESPACE}'"
+  else
+    if [[ "$FORCE_REINSTALL" == "true" ]]; then
+      log "Force reinstall requested; applying Argo CD ${ARGOCD_VERSION} manifest"
+    else
+      log "Installing Argo CD ${ARGOCD_VERSION}"
+    fi
+    kubectl apply -n "$ARGOCD_NAMESPACE" --server-side --force-conflicts -f "$ARGOCD_INSTALL_URL"
+  fi
+}
+
+wait_for_argocd() {
+  local output
+  log "Waiting for Argo CD server deployment (timeout: ${ROLLOUT_TIMEOUT})"
+  if ! output=$(kubectl rollout status deployment/argocd-server -n "$ARGOCD_NAMESPACE" --timeout="$ROLLOUT_TIMEOUT" 2>&1); then
+    printf '%s\n' "$output" | log_multiline
+    fail "Rollout failed"
+  fi
+  printf '%s\n' "$output" | log_multiline
+}
+
+bootstrap_root_application() {
+  local output
+  if [[ "$BOOTSTRAP_ROOT_APP" != "true" ]]; then
+    log "Skipping Argo CD root application bootstrap"
+    return
+  fi
+  [[ -f "$ROOT_APPLICATION_FILE" ]] || fail "Root application file not found: ${ROOT_APPLICATION_FILE}"
+  log "Applying Argo CD root application: ${ROOT_APPLICATION_FILE}"
+  if ! output=$(kubectl apply -f "$ROOT_APPLICATION_FILE" 2>&1); then
+    printf '%s\n' "$output" | log_multiline
+    fail "Failed to apply Argo CD root application"
+  fi
+  printf '%s\n' "$output" | log_multiline
+}
+
+post_checks() {
+  local output
+  log "Checking Argo CD pods"
+  output="$(kubectl get pods -n "$ARGOCD_NAMESPACE")"
+  printf '%s\n' "$output" | log_multiline
+  log "Argo CD bootstrap completed successfully"
+}
+
+print_next_steps() {
+  log "Access UI with:"
+  log "kubectl port-forward svc/argocd-server -n ${ARGOCD_NAMESPACE} 8080:443"
+  log "Then open in your browser:"
+  log "https://localhost:8080"
+  log "Login with:"
+  log "username: admin"
+  if kubectl get secret argocd-initial-admin-secret -n "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
+    log "Get initial password:"
+    log "kubectl -n ${ARGOCD_NAMESPACE} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo"
+    log "After logging in, change the admin password and delete the initial secret:"
+    log "kubectl -n ${ARGOCD_NAMESPACE} delete secret argocd-initial-admin-secret"
+  else
+    log "Initial admin password has already been removed"
+  fi
+}
+
+# =========================
+# Main
+# =========================
+
+main() {
+  parse_args "$@"
+  set_working_directory
+  check_requirements
+  check_cluster_access
+  ensure_namespace
+  install_argocd
+  wait_for_argocd
+  bootstrap_root_application
+  post_checks
+  print_next_steps
+}
+
+main "$@"
+exit 0

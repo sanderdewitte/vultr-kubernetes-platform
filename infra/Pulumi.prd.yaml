@@ -1,0 +1,6 @@
+config:
+  vultr-kubernetes-platform:region: ams
+  vultr-kubernetes-platform:cluster_name: vke-prd-01
+  vultr-kubernetes-platform:kubernetes_version: v1.35.2+1
+  vultr-kubernetes-platform:worker_node_plan: vc2-2c-4gb
+  vultr-kubernetes-platform:worker_node_count: "1"

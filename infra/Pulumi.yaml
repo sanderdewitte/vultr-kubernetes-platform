@@ -1,0 +1,6 @@
+name: vultr-kubernetes-platform
+runtime:
+  name: python
+  options:
+    toolchain: uv
+description: Vultr Kubernetes platform infrastructure
