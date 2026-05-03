@@ -7,7 +7,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/<username>/vultr-kubernetes-platform.git
+    repoURL: https://github.com/sanderdewitte/vultr-kubernetes-platform.git
     targetRevision: main
     path: platform
 
