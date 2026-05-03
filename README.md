@@ -180,11 +180,9 @@ config:
   vultr-kubernetes-platform:kubernetes_version: v1.xx.x+1
 ```
 
-## Initial Setup
+## Initial setup
 
-Before running any Pulumi commands, one must provide a Vultr API key to the Pulumi configuration.
-
-### Initialize Stack
+### Initialize Pulumi Stack
 
 If this is the first time using the project, create the stack:
 
@@ -201,7 +199,8 @@ pulumi stack select prd
 
 ### Set Vultr API Key
 
-There are two ways to provide the Vultr API key.
+For deployments one needs to authenticate with an API key.  
+There are two ways to provide the Vultr API keyi to Pulumi.
 
 #### Option 1: Pulumi configuration (encrypted)
 
