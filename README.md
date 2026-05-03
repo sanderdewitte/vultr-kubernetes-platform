@@ -92,8 +92,8 @@ Before using this repository, ensure the following tools are installed.
 - uv (Python package and virtual environment manager)
 - Pulumi CLI
 - Git
-- (Optional) GitHub CLI (gh) for repository creation
-- (Optional) vultr-cli for querying Kubernetes versions
+- (_Optional_) GitHub CLI (gh) for repository creation
+- (_Optional_) vultr-cli for querying Kubernetes versions
 
 ### Installation
 
