@@ -1,9 +1,19 @@
 # Platform
 
-Kubernetes platform components managed via Argo CD.
+Kubernetes platform components managed by Argo CD.
 
-## Planned Components
+This directory contains Argo CD `Application` manifests and related configuration for platform-level components.
 
-- Traefik (ingress)
-- cert-manager (TLS)
-- Argo CD (GitOps)
+## Components
+
+| Component | Status | Purpose |
+|---|---|---|
+| Argo CD | Bootstrap | GitOps controller |
+| Traefik | Active | Ingress controller |
+| cert-manager | Planned | TLS certificate management |
+
+## Notes
+
+- Argo CD itself is installed by the bootstrap script.
+- Platform components are managed via Argo CD Applications.
+- Do not manually install platform components with `helm install` or `kubectl apply`, except for the bootstrap process.
