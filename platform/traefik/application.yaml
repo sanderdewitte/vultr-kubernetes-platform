@@ -18,7 +18,6 @@ spec:
           replicas: 1
 
         hostNetwork: true
-        dnsPolicy: ClusterFirstWithHostNet
 
         service:
           enabled: false
