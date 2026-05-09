@@ -6,44 +6,17 @@ metadata:
 spec:
   project: default
 
-  source:
-    repoURL: https://traefik.github.io/charts
-    chart: traefik
-    targetRevision: 39.0.8
+  sources:
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      targetRevision: 39.0.8
+      helm:
+        valueFiles:
+          - $values_repo/platform/traefik/values.yaml
 
-    helm:
-      values: |
-        deployment:
-          kind: Deployment
-          replicas: 1
-
-        hostNetwork: false
-
-        service:
-          enabled: false
-
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          readOnlyRootFilesystem: true
-
-        additionalArguments:
-          - "--entryPoints.web.address=:8000/tcp"
-          - "--entryPoints.websecure.address=:8443/tcp"
-
-        ports:
-          web:
-            port: 8000
-            hostPort: 80
-            expose:
-              default: false
-          websecure:
-            port: 8443
-            hostPort: 443
-            expose:
-              default: false
+    - repoURL: https://github.com/sanderdewitte/vultr-kubernetes-platform.git
+      targetRevision: main
+      ref: values_repo
 
   destination:
     server: https://kubernetes.default.svc

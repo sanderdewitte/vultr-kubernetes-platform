@@ -1,0 +1,27 @@
+deployment:
+  kind: Deployment
+  replicas: 1
+
+hostNetwork: false
+
+service:
+  enabled: false
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+ports:
+  web:
+    port: 8000
+    hostPort: 80
+    expose:
+      default: false
+  websecure:
+    port: 8443
+    hostPort: 443
+    expose:
+      default: false
