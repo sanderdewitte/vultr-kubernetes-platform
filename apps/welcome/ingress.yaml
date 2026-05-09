@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: welcome
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: welcome.sanderdewitte.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: welcome
+                port:
+                  number: 80
