@@ -19,8 +19,6 @@ spec:
 
         hostNetwork: true
 
-        dnsPolicy: ClusterFirstWithHostNet
-
         service:
           enabled: false
 
