@@ -23,20 +23,20 @@ spec:
           enabled: false
 
         securityContext:
+          allowPrivilegeEscalation: false
           capabilities:
             drop:
               - ALL
-            add:
-              - NET_BIND_SERVICE
+          readOnlyRootFilesystem: true
 
         ports:
           web:
-            port: 80
+            port: 8000
             hostPort: 80
             expose:
               default: false
           websecure:
-            port: 443
+            port: 8443
             hostPort: 443
             expose:
               default: false
