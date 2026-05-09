@@ -15,15 +15,39 @@ The platform is designed to be simple, reproducible, cost-conscious and easy to 
 
 ## Target Architecture
 
+This platform is designed as a small, low-cost GitOps-managed Kubernetes environment on Vultr Kubernetes Engine (VKE).
+
+The intended traffic flow is:
+
 ```text
 Vultr DNS
   ↓
-VKE worker node public IP
+Single VKE worker node public IP
   ↓
-Traefik ingress controller
+Traefik on node host ports 80/443
   ↓
-Kubernetes services and applications
+cert-manager + Let's Encrypt
+  ↓
+Traefik TLS-enabled Ingress / IngressRoute
+    - hostPort 80  → Traefik web entryPoint on port 8000
+    - hostPort 443 → Traefik websecure entryPoint on port 8443
+  ↓
+Kubernetes ClusterIP services
+  ↓
+Application pods
 ```
+
+Traefik is the only component exposed directly on the worker node. Application workloads should normally use `ClusterIP` Services and be exposed through Traefik using Kubernetes `Ingress` or Traefik `IngressRoute` resources.
+
+The Traefik container listens on unprivileged ports `8000` and `8443`, while Kubernetes maps the node host ports `80` and `443` to those container ports. This allows Traefik to run without binding directly to privileged ports inside the container.
+
+### Scalability and cost trade-off
+
+This setup intentionally uses a single public worker node as the external entry point. This avoids the cost of a managed Vultr Load Balancer and keeps the architecture simple and easy to understand.
+
+This also means the setup is not highly available at the ingress layer. If the worker node that receives public traffic is unavailable, external access to the applications is unavailable.
+
+For a more production-grade multi-node setup, the recommended architecture would introduce an external load balancer or another highly available front-end in front of Traefik.
 
 ## Main Components
 
