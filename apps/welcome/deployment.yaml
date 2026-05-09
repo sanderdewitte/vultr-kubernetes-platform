@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: welcome
-          image: wbitt/Network-Multitool
+          image: wbitt/network-multitool
           ports:
             - containerPort: 80
