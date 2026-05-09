@@ -17,7 +17,7 @@ spec:
           kind: Deployment
           replicas: 1
 
-        hostNetwork: true
+        hostNetwork: false
 
         service:
           enabled: false
@@ -28,6 +28,10 @@ spec:
             drop:
               - ALL
           readOnlyRootFilesystem: true
+
+        additionalArguments:
+          - "--entryPoints.web.address=:8000/tcp"
+          - "--entryPoints.websecure.address=:8443/tcp"
 
         ports:
           web:
