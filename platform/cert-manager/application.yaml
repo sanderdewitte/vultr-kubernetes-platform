@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  project: default
+
+  sources:
+    - repoURL: quay.io/jetstack/charts
+      chart: cert-manager
+      targetRevision: v1.20.2
+      helm:
+        valueFiles:
+          - $values_repo/platform/cert-manager/values.yaml
+
+    - repoURL: https://github.com/sanderdewitte/vultr-kubernetes-platform.git
+      targetRevision: main
+      ref: values_repo
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
