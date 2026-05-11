@@ -13,24 +13,26 @@ The platform is designed to be simple, reproducible, cost-conscious and easy to 
 - Avoid unnecessary managed services unless they clearly reduce maintenance.
 - Keep the repository structure readable and predictable.
 
-## Target Architecture
+## Target architecture
 
 This platform is designed as a small, low-cost GitOps-managed Kubernetes environment on Vultr Kubernetes Engine (VKE).
 
-The intended traffic flow is:
+The platform intentionally avoids a managed Vultr Load Balancer. Instead, public traffic enters the cluster through the public IP address of a single VKE worker node.
+
+The intended HTTP/HTTPS traffic flow is:
 
 ```text
 Vultr DNS
   ↓
 Single VKE worker node public IP
   ↓
-Traefik on node host ports 80/443
+Node host ports 80/443
   ↓
-cert-manager + Let's Encrypt
-  ↓
-Traefik TLS-enabled Ingress / IngressRoute
+Traefik ingress controller
     - hostPort 80  → Traefik web entryPoint on port 8000
     - hostPort 443 → Traefik websecure entryPoint on port 8443
+  ↓
+Kubernetes Ingress / IngressRoute
   ↓
 Kubernetes ClusterIP services
   ↓
@@ -41,62 +43,126 @@ Traefik is the only component exposed directly on the worker node. Application w
 
 The Traefik container listens on unprivileged ports `8000` and `8443`, while Kubernetes maps the node host ports `80` and `443` to those container ports. This allows Traefik to run without binding directly to privileged ports inside the container.
 
+### DNS model
+
+Vultr DNS is managed through Pulumi.
+
+The DNS model is:
+
+```text
+example.com      A      <current VKE worker node public IP>
+*.example.com    CNAME  example.com
+```
+
+Pulumi derives the current worker node public IP from the VKE node pool and uses it for the apex `A` record. 
+
+If the VKE worker node is replaced and receives a new public IP address, running `pulumi up` updates the DNS `A` record.
+
 ### Scalability and cost trade-off
 
 This setup intentionally uses a single public worker node as the external entry point. This avoids the cost of a managed Vultr Load Balancer and keeps the architecture simple and easy to understand.
 
 This also means the setup is not highly available at the ingress layer. If the worker node that receives public traffic is unavailable, external access to the applications is unavailable.
 
+The Pulumi configuration intentionally validates that the low-cost DNS model is used with one worker node. If the platform is expanded to multiple worker nodes, the ingress architecture should be revisited.
+
 For a more production-grade multi-node setup, the recommended architecture would introduce an external load balancer or another highly available front-end in front of Traefik.
 
-## Main Components
+## Main components
+
+Implemented:
 
 - Vultr Kubernetes Engine (VKE)
 - Pulumi
-- GitHub Actions
-- Traefik
-- cert-manager
-- Argo CD
 - Vultr DNS
+- Argo CD
+- Traefik
 
-## Deployment Model
+Planned / next steps:
+
+- cert-manager
+- Let's Encrypt certificate automation
+- GitHub Actions for automated Pulumi preview/up
+
+## Deployment model
 
 ```text
 GitHub Repository
-├── infra/      → Pulumi
-├── platform/   → Kubernetes platform components
-└── apps/       → Applications
+├── infra/      → Pulumi infrastructure code
+├── platform/   → Argo CD platform configuration and Application definitions
+└── apps/       → Application Kubernetes manifests
 ```
 
-GitHub Actions  
-  → Runs Pulumi  
-  → Creates/updates Vultr infrastructure
+### Directory responsibilities
 
-Argo CD  
-  → Syncs platform/ and apps/ into Kubernetes
+`infra/` contains the Pulumi program. It creates and updates Vultr infrastructure, including the VKE cluster and Vultr DNS records.
+
+`platform/` contains Kubernetes platform configuration managed by Argo CD. The root Argo CD application watches this directory recursively. Platform components such as Traefik live directly under `platform/`, while normal application `Application` objects live under `platform/apps/`.
+
+`apps/` contains the actual Kubernetes manifests for application workloads.
+
+The current pattern is:
+
+```text
+platform/
+├── argocd/
+│   └── argocd-cm-ingress-health.yaml
+├── traefik/
+│   ├── application.yaml
+│   └── values.yaml
+└── apps/
+    └── welcome/
+        └── application.yaml
+
+apps/
+└── welcome/
+    ├── deployment.yaml
+    ├── service.yaml
+    └── ingress.yaml
+```
 
 ### Flow
 
 1. Infrastructure change  
-   → Commit to infra/  
-   → Pulumi preview/up  
-   → Vultr updated  
+   → Commit to `infra/`  
+   → Run `pulumi preview` / `pulumi up`  
+   → Vultr infrastructure and DNS are updated  
 
 2. Platform change  
-   → Commit to platform/  
-   → Argo CD syncs  
+   → Commit to `platform/`  
+   → Push to GitHub  
+   → Argo CD syncs the platform change  
 
 3. Application change  
-   → Commit to apps/  
-   → Argo CD deploys  
+   → Commit to `apps/` and, when needed, `platform/apps/`  
+   → Push to GitHub  
+   → Argo CD deploys or updates the application  
 
-## Initial Cluster
+Argo CD reads from the remote GitHub repository, not from the local working tree. Changes must be committed and pushed before Argo CD can apply them.
+
+## Initial cluster
 
 - 1 worker node
 - 2 vCPU
 - 4 GB RAM
 
-## Naming Convention
+## Worker node maintenance
+
+VKE worker nodes are managed as part of the Vultr Kubernetes Engine service. They should not be treated like manually maintained servers.
+
+Do not SSH into the worker node to run operating system package updates manually. Instead, apply VKE and node pool upgrades through Vultr and keep the platform declarative so workloads can be recreated from Git.
+
+Because this low-cost setup points DNS directly to the public IP of the single worker node, a node replacement may change the public IP address. After a VKE or node pool upgrade, run:
+
+```bash
+cd infra
+pulumi preview
+pulumi up
+```
+
+Pulumi derives the current worker node public IP and updates the Vultr DNS apex `A` record when needed. The wildcard `CNAME` follows the apex record automatically.
+
+## Naming convention
 
 ```text
 <service>-<environment>-<sequence>
@@ -110,7 +176,7 @@ Examples:
 
 Before using this repository, ensure the following tools are installed.
 
-### Required Tools
+### Required tools
 
 - Python 3.10 or newer
 - uv (Python package and virtual environment manager)
@@ -221,7 +287,7 @@ If the stack already exists, select it:
 pulumi stack select prd
 ```
 
-### Set Vultr API Key
+### Set Vultr API key
 
 For deployments one needs to authenticate with an API key.
 
@@ -271,7 +337,7 @@ Notes:
 - This approach is preferred for personal repositories and GitHub usage
 - For CI/CD (e.g. GitHub Actions), store `VULTR_API_KEY` as a repository secret
 
-### Deploy Infrastructure
+### Deploy infrastructure
 
 After configuring the Vultr API key, one can deploy the infrastructure.
 
@@ -469,3 +535,24 @@ This will:
 - Changes must be committed and pushed before they are applied
 - After GitOps activation, all platform components (such as Traefik) are managed declaratively via Git
 - Do not manually install components like Traefik; use Argo CD Applications instead
+
+### Argo CD health customization for Traefik Ingresses
+
+This platform exposes Traefik through `hostPort` on a single worker node instead of through a Kubernetes `LoadBalancer` Service.
+
+Because of this, Kubernetes `Ingress` resources do not receive a `status.loadBalancer.ingress` address. The Ingress can still route correctly through Traefik, but Argo CD may otherwise keep applications in `Progressing` health state.
+
+To make Argo CD health match the chosen low-cost ingress architecture, the repository includes a partial Server-Side Apply patch for `argocd-cm`:
+
+```text
+platform/argocd/argocd-cm-ingress-health.yaml
+```
+
+This customization treats `Ingress` resources with `ingressClassName: traefik` as healthy without requiring a load balancer address.
+
+If this configuration is changed, the Argo CD application controller may need to be restarted so it reloads `argocd-cm`:
+
+```bash
+kubectl rollout restart statefulset/argocd-application-controller -n argocd
+kubectl rollout status statefulset/argocd-application-controller -n argocd
+```
