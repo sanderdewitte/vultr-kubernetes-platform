@@ -16,6 +16,7 @@ Pulumi.*.yaml.bak
 # =========================
 # Secrets / local overrides
 # =========================
+secrets.local.env
 .env
 *.pem
 *.key
