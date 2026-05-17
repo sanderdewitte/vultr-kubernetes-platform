@@ -12,7 +12,7 @@ from providers import create_vultr_provider, create_kubernetes_provider
 from cluster import create_cluster
 from worker_node import get_first_worker_public_ip
 from dns import create_dns_records
-from kubernetes_secrets import create_kubernetes_secrets
+from secure import create_kubernetes_secrets
 from outputs import export_outputs
 
 # Configuration
