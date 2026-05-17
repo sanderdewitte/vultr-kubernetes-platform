@@ -7,5 +7,6 @@ def export_outputs(cluster, platform_ip, dns_records):
     pulumi.export("kubeconfig", pulumi.Output.secret(cluster.kube_config))
 
     pulumi.export("platform_ip", platform_ip)
-    pulumi.export("dns_apex_record_id", dns_records["apex_record"].id)
-    pulumi.export("dns_wildcard_record_id", dns_records["wildcard_record"].id)
+
+    dns_record_ids = {name: record.id for name, record in dns_records.items()}
+    pulumi.export("dns_record_ids", dns_record_ids)

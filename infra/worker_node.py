@@ -29,13 +29,17 @@ def get_first_worker_node_id(cluster):
     return cluster.node_pools.apply(extract_node_id)
 
 
-def get_first_worker_public_ip(cluster):
+def get_first_worker_public_ip(cluster, vultr_provider):
     """
     Look up the first VKE worker node as a Vultr instance and return its public IP.
     """
 
     worker_node_id = get_first_worker_node_id(cluster)
 
-    worker_instance = vultr.Instance.get("vke-worker-instance", id=worker_node_id)
+    worker_instance = vultr.Instance.get(
+        "vke-worker-instance",
+        id=worker_node_id,
+        opts=pulumi.ResourceOptions(provider=vultr_provider),
+    )
 
     return worker_instance.main_ip
