@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-webhook-vultr
+  namespace: argocd
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://vultr.github.io/helm-charts
+      chart: cert-manager-webhook-vultr
+      targetRevision: 1.0.0
+      helm:
+        valueFiles:
+          - $values_repo/platform/cert-manager-webhook-vultr/values.yaml
+
+    - repoURL: https://github.com/sanderdewitte/vultr-kubernetes-platform.git
+      targetRevision: main
+      ref: values_repo
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
