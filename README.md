@@ -104,10 +104,10 @@ Implemented:
 
 Planned / next steps:
 
-- Expose Argo CD via `https://cicd.example.com`.
-- Expose the Traefik dashboard via `https://router.example.com`.
 - Add a lightweight central identity and access-management component, initially evaluating LLDAP and Authentik.
 - Integrate selected applications with lightweight central identity and access-management component where supported.
+- Expose Argo CD via `https://cicd.example.com`.
+- Expose the Traefik dashboard via `https://router.example.com`.
 - Add a GitHub Actions workflow for manually triggered Pulumi preview.
 - Optionally add a manually approved Pulumi up workflow.
 
