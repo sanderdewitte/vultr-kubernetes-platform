@@ -104,7 +104,12 @@ Implemented:
 
 Planned / next steps:
 
-- GitHub Actions for automated Pulumi preview/up
+- Expose Argo CD via `https://cicd.sanderdewitte.com`.
+- Expose the Traefik dashboard via `https://router.sanderdewitte.com`.
+- Add LLDAP as a lightweight central identity store for platform and application authentication.
+- Integrate selected applications with LLDAP where supported.
+- Add a GitHub Actions workflow for manually triggered Pulumi preview.
+- Optionally add a manually approved Pulumi up workflow.
 
 ## Deployment model
 
