@@ -58,6 +58,27 @@ Pulumi derives the current worker node public IP from the VKE node pool and uses
 
 If the VKE worker node is replaced and receives a new public IP address, running `pulumi up` updates the DNS `A` record.
 
+### Certificate model
+
+cert-manager is installed as a platform component and uses Let's Encrypt for certificate issuance.
+
+This platform uses ACME DNS-01 validation through the Vultr webhook. The Vultr webhook only adds Vultr integration capability to cert-manager. The actual choice to use DNS-01 and the Vultr webhook is made by the `ClusterIssuer` resources under:
+
+```text
+platform/cert-manager/issuers/
+```
+
+The Vultr API token is not stored in Git. It is read by Pulumi from `infra/secrets.local.env` and written into Kubernetes as the `vultr-credentials` Secret in the `cert-manager` namespace. The webhook has narrowly scoped RBAC that allows it to read only that Secret.
+
+Two issuers are defined:
+
+```text
+letsencrypt-staging     → Let's Encrypt staging environment for testing
+letsencrypt-production  → Let's Encrypt production environment for trusted certificates
+```
+
+Applications request certificates by referencing one of these issuers from their Ingress annotations and by defining a TLS section with a namespace-local Secret name.
+
 ### Scalability and cost trade-off
 
 This setup intentionally uses a single public worker node as the external entry point. This avoids the cost of a managed Vultr Load Balancer and keeps the architecture simple and easy to understand.
@@ -77,11 +98,12 @@ Implemented:
 - Vultr DNS
 - Argo CD
 - Traefik
+- cert-manager
+- cert-manager Vultr webhook
+- Let's Encrypt certificate automation using DNS-01
 
 Planned / next steps:
 
-- cert-manager
-- Let's Encrypt certificate automation
 - GitHub Actions for automated Pulumi preview/up
 
 ## Deployment model
@@ -104,21 +126,31 @@ GitHub Repository
 The current pattern is:
 
 ```text
-platform/
-├── argocd/
-│   └── argocd-cm-ingress-health.yaml
-├── traefik/
-│   ├── application.yaml
-│   └── values.yaml
-└── apps/
-    └── welcome/
-        └── application.yaml
+    platform/
+    ├── argocd/
+    │   └── argocd-cm-ingress-health.yaml
+    ├── cert-manager/
+    │   ├── application.yaml
+    │   ├── values.yaml
+    │   ├── issuers/
+    │   │   ├── clusterissuer-letsencrypt-staging.yaml
+    │   │   └── clusterissuer-letsencrypt-production.yaml
+    │   └── webhook-vultr/
+    │       ├── application.yaml
+    │       ├── values.yaml
+    │       └── secret-reader-rbac.yaml
+    ├── traefik/
+    │   ├── application.yaml
+    │   └── values.yaml
+    └── apps/
+        └── welcome/
+            └── application.yaml
 
-apps/
-└── welcome/
-    ├── deployment.yaml
-    ├── service.yaml
-    └── ingress.yaml
+    apps/
+    └── welcome/
+        ├── deployment.yaml
+        ├── service.yaml
+        └── ingress.yaml
 ```
 
 ### Flow
@@ -287,55 +319,54 @@ If the stack already exists, select it:
 pulumi stack select prd
 ```
 
-### Set Vultr API key
+### Configure local secrets
 
-For deployments one needs to authenticate with an API key.
-
-There are two ways to provide the Vultr API key to Pulumi.
-
-#### Option 1: Pulumi configuration (encrypted)
-
-```bash
-pulumi config set vultr:apiKey --secret
-```
-
-You will be prompted to enter your Vultr API key.
-
-Verification:
-
-```bash
-pulumi config
-```
-
-Expected output:
+The Pulumi program loads local secrets from:
 
 ```text
-vultr:apiKey: [secret]
+infra/secrets.local.env
 ```
 
-Notes:
+This file is intentionally ignored by Git. A sample file is provided:
 
-- The API key is stored as an encrypted secret in `Pulumi.prd.yaml`
-- This file can be committed safely, as Pulumi encrypts the value
+```text
+infra/secrets.local.env.sample
+```
 
-#### Option 2: Environment variable (_recommended_)
+Create the local file:
 
 ```bash
-export VULTR_API_KEY=<VULTR_API_KEY>
+cp infra/secrets.local.env.sample infra/secrets.local.env
 ```
 
-Verification:
+Then edit it and set at least:
 
 ```bash
-echo $VULTR_API_KEY
+VULTR_API_KEY="<VULTR_API_KEY>"
 ```
 
-Notes:
+The same Vultr API key is used for two purposes:
 
-- The API key is not stored in the repository at all
-- This avoids committing any secrets, even in encrypted form
-- This approach is preferred for personal repositories and GitHub usage
-- For CI/CD (e.g. GitHub Actions), store `VULTR_API_KEY` as a repository secret
+- by Pulumi to manage Vultr infrastructure, such as the VKE cluster and DNS records
+- by cert-manager, through a Pulumi-created Kubernetes Secret, to complete Vultr DNS-01 challenges
+
+The Pulumi code creates an explicit Vultr provider from this value. This avoids storing the API key in `Pulumi.prd.yaml`, even in encrypted form.
+
+For local `kubectl` use, `secrets.local.env` may also contain:
+
+```bash
+KUBECONFIG="${HOME}/Configuration/vultr-kubernetes-platform/infra/kubeconfig.yaml"
+```
+
+To export values from this file into the current shell:
+
+```bash
+set -a
+. infra/secrets.local.env
+set +a
+```
+
+This is only needed for shell commands such as `kubectl`. Pulumi reads `infra/secrets.local.env` directly from Python.
 
 ### Deploy infrastructure
 
@@ -381,6 +412,31 @@ Expected result:
 
 - The kubeconfig contains credentials; treat it as sensitive data
 - Do not commit `kubeconfig.yaml` to version control (it is added to `.gitignore`)
+
+### Cert-manager and TLS verification
+
+Check cert-manager and issuer status:
+
+```bash
+kubectl get applications -n argocd
+kubectl get pods -n cert-manager
+kubectl get clusterissuer
+```
+
+Check certificates for an application namespace:
+
+```bash
+kubectl get certificate -n welcome
+kubectl describe certificate welcome-example-com-tls -n welcome
+```
+
+The `welcome` test app should be reachable over HTTPS:
+
+```bash
+curl -v https://welcome.example.com/
+```
+
+Certificate renewal is handled by cert-manager at runtime. GitOps defines the desired `Ingress`, `Certificate`/TLS secret reference and `ClusterIssuer`; cert-manager monitors the certificate lifecycle and renews certificates before expiry as long as the issuer, DNS credentials and DNS-01 validation continue to work.
 
 ### Bootstrap Argo CD
 
