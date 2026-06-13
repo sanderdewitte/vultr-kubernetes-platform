@@ -102,13 +102,14 @@ Implemented:
 - cert-manager Vultr webhook
 - Let's Encrypt certificate automation using DNS-01
 - CloudNativePG operator
+- Shared PostgreSQL platform database.
 
 Planned / next steps:
 
-- Shared PostgreSQL platform database.
 - Add Authentik as a central identity and access-management platform.
 - Integrate selected applications with Authentik where supported.
 - Publish selected platform management services through Traefik and central authentication.
+- Add metrics-server for basic Kubernetes CPU and memory visibility.
 - Add a GitHub Actions workflow for manually triggered Pulumi preview.
 - Optionally add a manually approved Pulumi up workflow.
 
