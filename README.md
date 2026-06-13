@@ -101,13 +101,14 @@ Implemented:
 - cert-manager
 - cert-manager Vultr webhook
 - Let's Encrypt certificate automation using DNS-01
+- CloudNativePG operator
 
 Planned / next steps:
 
-- Add a lightweight central identity and access-management component, initially evaluating LLDAP and Authentik.
-- Integrate selected applications with lightweight central identity and access-management component where supported.
-- Expose Argo CD via `https://cicd.example.com`.
-- Expose the Traefik dashboard via `https://router.example.com`.
+- Shared PostgreSQL platform database.
+- Add Authentik as a central identity and access-management platform.
+- Integrate selected applications with Authentik where supported.
+- Publish selected platform management services through Traefik and central authentication.
 - Add a GitHub Actions workflow for manually triggered Pulumi preview.
 - Optionally add a manually approved Pulumi up workflow.
 
@@ -348,30 +349,20 @@ Then edit it and set at least:
 
 ```bash
 VULTR_API_KEY="<VULTR_API_KEY>"
+POSTGRESQL_SUPERUSER_PASSWORD="<POSTGRESQL_SUPERUSER_PASSWORD>"
+POSTGRESQL_APP_PASSWORD="<POSTGRESQL_APP_PASSWORD>"
 ```
 
-The same Vultr API key is used for two purposes:
+The Vultr API key is used for two purposes:
 
 - by Pulumi to manage Vultr infrastructure, such as the VKE cluster and DNS records
 - by cert-manager, through a Pulumi-created Kubernetes Secret, to complete Vultr DNS-01 challenges
 
+The PostgreSQL passwords are used by Pulumi to create Kubernetes Secrets for the shared PostgreSQL platform database.
+
 The Pulumi code creates an explicit Vultr provider from this value. This avoids storing the API key in `Pulumi.prd.yaml`, even in encrypted form.
 
-For local `kubectl` use, `secrets.local.env` may also contain:
-
-```bash
-KUBECONFIG="${HOME}/Configuration/vultr-kubernetes-platform/infra/kubeconfig.yaml"
-```
-
-To export values from this file into the current shell:
-
-```bash
-set -a
-. infra/secrets.local.env
-set +a
-```
-
-This is only needed for shell commands such as `kubectl`. Pulumi reads `infra/secrets.local.env` directly from Python.
+Pulumi reads `infra/secrets.local.env` directly from Python. The file does not need to be sourced into the shell.
 
 ### Deploy infrastructure
 
@@ -397,10 +388,12 @@ chmod 600 kubeconfig.yaml
 
 ### Configure kubectl
 
-Use the generated kubeconfig:
+Copy the generated kubeconfig to the standard Kubernetes location:
 
 ```bash
-export KUBECONFIG="$PWD/kubeconfig.yaml"
+mkdir -p ~/.kube
+cp kubeconfig.yaml ~/.kube/config
+chmod 600 ~/.kube/config
 ```
 
 Verify access:
