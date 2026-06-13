@@ -12,6 +12,8 @@ __pycache__/
 # =========================
 .pulumi/
 Pulumi.*.yaml.bak
+Pulumi.*.yaml
+!Pulumi.sample.yaml
 
 # =========================
 # Secrets / local overrides

@@ -6,6 +6,6 @@ config:
   vultr-kubernetes-platform:worker_node_count: "1"
   vultr-kubernetes-platform:dns_ttl: "300"
   vultr-kubernetes-platform:domains:
-    - name: sanderdewitte.com
+    - name: example.com
       apex: true
       wildcard: true

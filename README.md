@@ -311,6 +311,18 @@ config:
 
 ## Initial setup
 
+### Create Pulumi Configuration
+
+`prd` is the Pulumi stack name chosen for the production instance of this small platform.
+
+Copy the sample configuration:
+
+```bash
+cp Pulumi.sample.yaml Pulumi.prd.yaml
+```
+
+Edit `Pulumi.prd.yaml` and adjust the values for your environment.
+
 ### Initialize Pulumi Stack
 
 If this is the first time using the project, create the stack:
