@@ -15,6 +15,8 @@ class Settings:
         secrets_file = Path(__file__).parent / "secrets.local.env"
         load_dotenv(dotenv_path=secrets_file, override=False)
         self.vultr_api_key = os.environ.get("VULTR_API_KEY")
+        self.postgresql_superuser_password = os.environ.get("POSTGRESQL_SUPERUSER_PASSWORD")
+        self.postgresql_app_password = os.environ.get("POSTGRESQL_APP_PASSWORD")
 
         config = pulumi.Config()
         self.region = config.get("region") or "ams"
@@ -84,5 +86,17 @@ class Settings:
         if not self.vultr_api_key:
             raise ValueError(
                 "VULTR_API_KEY is not set. "
+                "Create infra/secrets.local.env or set the environment variable."
+            )
+
+        if not self.postgresql_superuser_password:
+            raise ValueError(
+                "POSTGRESQL_SUPERUSER_PASSWORD is not set. "
+                "Create infra/secrets.local.env or set the environment variable."
+            )
+        
+        if not self.postgresql_app_password:
+            raise ValueError(
+                "POSTGRESQL_APP_PASSWORD is not set. "
                 "Create infra/secrets.local.env or set the environment variable."
             )
