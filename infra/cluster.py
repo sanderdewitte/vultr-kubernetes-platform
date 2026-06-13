@@ -1,6 +1,7 @@
 import pulumi
 import ediri_vultr as vultr
 
+
 def create_cluster(settings, vultr_provider):
 
     return vultr.Kubernetes(
