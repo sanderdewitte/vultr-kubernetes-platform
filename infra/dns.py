@@ -2,16 +2,15 @@ import pulumi
 import ediri_vultr as vultr
 
 
-def get_resource_prefix(domain_name, primary_domain_name):
+def get_resource_prefix(settings, domain_name):
     """
     Keep existing Pulumi resource names for the primary/imported domain.
     Use domain-based names for additional domains.
     """
-
-    if domain_name == primary_domain_name:
+    if domain_name == settings.primary_domain_name:
         return "platform"
 
-    return domain_name.replace(".", "-")
+    return settings.domain_to_slug(domain_name)
 
 def create_dns_records(settings, platform_ip, vultr_provider):
     """
@@ -31,7 +30,7 @@ def create_dns_records(settings, platform_ip, vultr_provider):
     for domain in settings.domains:
         domain_name = domain["name"]
         domain_ttl = domain.get("ttl", settings.dns_ttl)
-        resource_prefix = get_resource_prefix(domain_name, settings.primary_domain_name)
+        resource_prefix = get_resource_prefix(settings, domain_name)
 
         if domain.get("apex", True):
             resource_name = f"{resource_prefix}-apex-a"

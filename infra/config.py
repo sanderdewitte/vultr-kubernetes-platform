@@ -31,6 +31,14 @@ class Settings:
 
         self.validate()
 
+    @staticmethod
+    def domain_to_slug(domain_name):
+        return domain_name.lower().replace(".", "-")
+
+    @staticmethod
+    def domain_to_identifier(domain_name):
+        return domain_name.lower().replace(".", "_")
+
     def validate(self):
 
         if self.worker_node_count != 1:
