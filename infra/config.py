@@ -6,11 +6,13 @@ import pulumi
 
 
 MIN_DNS_TTL = 60
-DOMAIN_SECRET_REQUIREMENTS = {
-    "authentik": [
-        "postgresql_password",
-        "secret_key",
-    ],
+SUPPORTED_APPLICATIONS = {
+    "authentik": {
+        "secret_requirements": [
+            "postgresql_password",
+            "secret_key",
+        ],
+    },
 }
 
 
@@ -92,6 +94,7 @@ class Settings:
             raise ValueError("The first domain entry must have a name.")
 
         for domain in self.domains:
+
             domain_name = domain.get("name")
 
             if not domain_name:
@@ -103,7 +106,36 @@ class Settings:
             if not isinstance(domain.get("wildcard", False), bool):
                 raise ValueError(f"Domain {domain_name}: wildcard must be true or false.")
 
+            domain_applications = domain.get("applications", [])
+
+            if not isinstance(domain_applications, list):
+                raise ValueError(
+                    f"Domain {domain_name}: applications must be a list."
+                )
+
+            for domain_application in domain_applications:
+
+                if domain_application not in SUPPORTED_APPLICATIONS:
+                    raise ValueError(
+                        f"Domain {domain_name}: unknown application '{domain_application}'."
+                    )
+
+                for secret_name in SUPPORTED_APPLICATIONS[domain_application]["secret_requirements"]:
+
+                    env_name = self.get_domain_secret_env_name(
+                        application=domain_application,
+                        domain_name=domain_name,
+                        secret_name=secret_name,
+                    )
+            
+                    if not os.environ.get(env_name):
+                        raise ValueError(
+                            f"{env_name} is not set. "
+                            "Create infra/secrets.local.env or set the environment variable."
+                        )
+
             domain_ttl = domain.get("ttl")
+
             if domain_ttl is not None and domain_ttl < MIN_DNS_TTL:
                 raise ValueError(
                     f"Domain {domain_name}: ttl should be at least {MIN_DNS_TTL} seconds"
@@ -125,16 +157,3 @@ class Settings:
                         f"Domain {domain_name}, record {record.get('name')}: "
                         f"ttl should be at least {MIN_DNS_TTL} seconds."
                     )
-
-            for application, secret_names in DOMAIN_SECRET_REQUIREMENTS.items():
-                for secret_name in secret_names:
-                    env_name = self.get_domain_secret_env_name(
-                        application=application,
-                        domain_name=domain_name,
-                        secret_name=secret_name,
-                    )
-                    if not os.environ.get(env_name):
-                        raise ValueError(
-                            f"{env_name} is not set. "
-                            "Create infra/secrets.local.env or set the environment variable."
-                        )
