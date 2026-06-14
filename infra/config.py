@@ -6,6 +6,12 @@ import pulumi
 
 
 MIN_DNS_TTL = 60
+DOMAIN_SECRET_REQUIREMENTS = {
+    "authentik": [
+        "postgresql_password",
+        "secret_key",
+    ],
+}
 
 
 class Settings:
@@ -33,13 +39,42 @@ class Settings:
 
     @staticmethod
     def domain_to_slug(domain_name):
+
         return domain_name.lower().replace(".", "-")
 
     @staticmethod
     def domain_to_identifier(domain_name):
+
         return domain_name.lower().replace(".", "_")
 
+    def get_domain_secret_env_name(self, application, domain_name, secret_name):
+
+        domain_identifier = self.domain_to_identifier(domain_name)
+
+        env_name = (
+            f"{application}_"
+            f"{domain_identifier}_"
+            f"{secret_name}"
+        )
+
+        return env_name.upper()
+
+    def get_domain_secret(self, application, domain_name, secret_name):
+
+        return os.environ.get(self.get_domain_secret_env_name(application, domain_name, secret_name))
+
     def validate(self):
+
+        for env_name, value in [
+            ("VULTR_API_KEY", self.vultr_api_key),
+            ("POSTGRESQL_SUPERUSER_PASSWORD", self.postgresql_superuser_password),
+            ("POSTGRESQL_APP_PASSWORD", self.postgresql_app_password),
+        ]:
+            if not value:
+                raise ValueError(
+                    f"{env_name} is not set. "
+                    "Create infra/secrets.local.env or set the environment variable."
+                )
 
         if self.worker_node_count != 1:
             raise ValueError(
@@ -91,20 +126,15 @@ class Settings:
                         f"ttl should be at least {MIN_DNS_TTL} seconds."
                     )
 
-        if not self.vultr_api_key:
-            raise ValueError(
-                "VULTR_API_KEY is not set. "
-                "Create infra/secrets.local.env or set the environment variable."
-            )
-
-        if not self.postgresql_superuser_password:
-            raise ValueError(
-                "POSTGRESQL_SUPERUSER_PASSWORD is not set. "
-                "Create infra/secrets.local.env or set the environment variable."
-            )
-        
-        if not self.postgresql_app_password:
-            raise ValueError(
-                "POSTGRESQL_APP_PASSWORD is not set. "
-                "Create infra/secrets.local.env or set the environment variable."
-            )
+            for application, secret_names in DOMAIN_SECRET_REQUIREMENTS.items():
+                for secret_name in secret_names:
+                    env_name = self.get_domain_secret_env_name(
+                        application=application,
+                        domain_name=domain_name,
+                        secret_name=secret_name,
+                    )
+                    if not os.environ.get(env_name):
+                        raise ValueError(
+                            f"{env_name} is not set. "
+                            "Create infra/secrets.local.env or set the environment variable."
+                        )
