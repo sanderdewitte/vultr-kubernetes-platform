@@ -1,0 +1,4 @@
+authentik:
+  secret_requirements:
+    - postgresql_password
+    - secret_key

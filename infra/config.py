@@ -1,41 +1,44 @@
 import os
+import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 
 import pulumi
 
 
+SECRETS_FILE = Path(__file__).parent / "secrets.local.env"
+SUPPORTED_APPLICATIONS_FILE = Path(__file__).parent / "apps.yaml"
 MIN_DNS_TTL = 60
-SUPPORTED_APPLICATIONS = {
-    "authentik": {
-        "secret_requirements": [
-            "postgresql_password",
-            "secret_key",
-        ],
-    },
-}
+
+
+def load_supported_applications():
+
+    with SUPPORTED_APPLICATIONS_FILE.open("r", encoding="utf-8") as file_handle:
+        return yaml.safe_load(file_handle)
 
 
 class Settings:
 
     def __init__(self):
 
-        secrets_file = Path(__file__).parent / "secrets.local.env"
-        load_dotenv(dotenv_path=secrets_file, override=False)
+        load_dotenv(dotenv_path=SECRETS_FILE, override=False)
+
         self.vultr_api_key = os.environ.get("VULTR_API_KEY")
         self.postgresql_superuser_password = os.environ.get("POSTGRESQL_SUPERUSER_PASSWORD")
         self.postgresql_app_password = os.environ.get("POSTGRESQL_APP_PASSWORD")
 
         config = pulumi.Config()
+
         self.region = config.get("region") or "ams"
         self.cluster_name = config.get("cluster_name") or "vke-prd-01"
         self.kubernetes_version = config.require("kubernetes_version")
         self.worker_node_plan = config.get("worker_node_plan") or "vc2-2c-4gb"
         self.worker_node_count = config.get_int("worker_node_count") or 1
-
         self.dns_ttl = config.get_int("dns_ttl") or 300
         self.domains = config.require_object("domains")
         self.primary_domain_name = self.domains[0].get("name") if self.domains else None
+
+        self.supported_applications = load_supported_applications()
 
         self.validate()
 
@@ -93,6 +96,11 @@ class Settings:
         if not self.primary_domain_name:
             raise ValueError("The first domain entry must have a name.")
 
+        if not isinstance(self.supported_applications, dict):
+            raise ValueError(
+                "apps.yaml must contain a dictionary of supported applications."
+            )
+
         for domain in self.domains:
 
             domain_name = domain.get("name")
@@ -115,12 +123,12 @@ class Settings:
 
             for domain_application in domain_applications:
 
-                if domain_application not in SUPPORTED_APPLICATIONS:
+                if domain_application not in self.supported_applications:
                     raise ValueError(
                         f"Domain {domain_name}: unknown application '{domain_application}'."
                     )
 
-                for secret_name in SUPPORTED_APPLICATIONS[domain_application]["secret_requirements"]:
+                for secret_name in self.supported_applications[domain_application]["secret_requirements"]:
 
                     env_name = self.get_domain_secret_env_name(
                         application=domain_application,
