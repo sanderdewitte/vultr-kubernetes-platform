@@ -9,3 +9,5 @@ config:
     - name: example.com
       apex: true
       wildcard: true
+      applications:
+        - authentik
