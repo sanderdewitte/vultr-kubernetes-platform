@@ -43,6 +43,11 @@ class Settings:
         self.validate()
 
     @staticmethod
+    def secret_to_slug(secret_name):
+
+        return secret_name.lower().replace("_", "-")
+
+    @staticmethod
     def domain_to_slug(domain_name):
 
         return domain_name.lower().replace(".", "-")
@@ -78,7 +83,7 @@ class Settings:
             if not value:
                 raise ValueError(
                     f"{env_name} is not set. "
-                    "Create infra/secrets.local.env or set the environment variable."
+                    f"Create {SECRETS_FILE.name} or set the environment variable."
                 )
 
         if self.worker_node_count != 1:
@@ -98,7 +103,8 @@ class Settings:
 
         if not isinstance(self.supported_applications, dict):
             raise ValueError(
-                "apps.yaml must contain a dictionary of supported applications."
+                f"{SUPPORTED_APPLICATIONS_FILE.name} must contain a dictionary "
+                "of supported applications."
             )
 
         for domain in self.domains:
@@ -128,7 +134,15 @@ class Settings:
                         f"Domain {domain_name}: unknown application '{domain_application}'."
                     )
 
-                for secret_name in self.supported_applications[domain_application]["secret_requirements"]:
+                application_config = self.supported_applications[domain_application]
+
+                if (application_config.get("secret_requirements") and not application_config.get("namespace", False)):
+                    raise ValueError(
+                        f"Application '{domain_application}' defines "
+                        "secret_requirements but namespace is not enabled."
+                    )
+
+                for secret_name in application_config.get("secret_requirements", []):
 
                     env_name = self.get_domain_secret_env_name(
                         application=domain_application,
@@ -139,7 +153,7 @@ class Settings:
                     if not os.environ.get(env_name):
                         raise ValueError(
                             f"{env_name} is not set. "
-                            "Create infra/secrets.local.env or set the environment variable."
+                            f"Create {SECRETS_FILE.name} or set the environment variable."
                         )
 
             domain_ttl = domain.get("ttl")
