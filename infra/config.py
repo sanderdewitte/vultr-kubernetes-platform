@@ -11,7 +11,7 @@ SUPPORTED_APPLICATIONS_FILE = Path(__file__).parent / "apps.yaml"
 MIN_DNS_TTL = 60
 
 
-def load_supported_applications():
+def load_supported_applications() -> dict:
 
     with SUPPORTED_APPLICATIONS_FILE.open("r", encoding="utf-8") as file_handle:
         return yaml.safe_load(file_handle)
@@ -19,7 +19,7 @@ def load_supported_applications():
 
 class Settings:
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         load_dotenv(dotenv_path=SECRETS_FILE, override=False)
 
@@ -43,21 +43,21 @@ class Settings:
         self.validate()
 
     @staticmethod
-    def secret_to_slug(secret_name):
+    def secret_to_slug(secret_name) -> str:
 
         return secret_name.lower().replace("_", "-")
 
     @staticmethod
-    def domain_to_slug(domain_name):
+    def domain_to_slug(domain_name) -> str:
 
         return domain_name.lower().replace(".", "-")
 
     @staticmethod
-    def domain_to_identifier(domain_name):
+    def domain_to_identifier(domain_name) -> str:
 
         return domain_name.lower().replace(".", "_")
 
-    def get_domain_secret_env_name(self, application, domain_name, secret_name):
+    def get_domain_secret_env_name(self, application, domain_name, secret_name) -> str:
 
         domain_identifier = self.domain_to_identifier(domain_name)
 
@@ -69,11 +69,11 @@ class Settings:
 
         return env_name.upper()
 
-    def get_domain_secret(self, application, domain_name, secret_name):
+    def get_domain_secret(self, application, domain_name, secret_name) -> str | None:
 
         return os.environ.get(self.get_domain_secret_env_name(application, domain_name, secret_name))
 
-    def validate(self):
+    def validate(self) -> None:
 
         for env_name, value in [
             ("VULTR_API_KEY", self.vultr_api_key),

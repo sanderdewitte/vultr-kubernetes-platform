@@ -6,13 +6,13 @@ CERT_MANAGER_NAMESPACE = "cert-manager"
 PLATFORM_DATABASE_NAMESPACE = "platform-database"
 
 
-def get_domain_application_namespace(settings, application, domain_name):
+def get_domain_application_namespace(settings, application, domain_name) -> str:
 
     domain_slug = settings.domain_to_slug(domain_name)
 
     return f"{application}-{domain_slug}"
 
-def create_kubernetes_secrets(settings, kubernetes_provider):
+def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
 
     vultr_credentials = k8s.core.v1.Secret(
         "cert-manager-vultr-credentials",

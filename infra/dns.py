@@ -2,7 +2,7 @@ import pulumi
 import ediri_vultr as vultr
 
 
-def get_resource_prefix(settings, domain_name):
+def get_resource_prefix(settings, domain_name) -> str:
     """
     Keep existing Pulumi resource names for the primary/imported domain.
     Use domain-based names for additional domains.
@@ -12,7 +12,7 @@ def get_resource_prefix(settings, domain_name):
 
     return settings.domain_to_slug(domain_name)
 
-def create_dns_records(settings, platform_ip, vultr_provider):
+def create_dns_records(settings, platform_ip, vultr_provider) -> dict[str, vultr.DnsRecord]:
     """
     Create DNS records for the Kubernetes platform entry point.
 

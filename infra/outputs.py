@@ -1,6 +1,6 @@
 import pulumi
 
-def export_outputs(cluster, platform_ip, dns_records):
+def export_outputs(cluster, platform_ip, dns_records) -> None:
 
     pulumi.export("cluster_id", cluster.id)
     pulumi.export("cluster_endpoint", cluster.endpoint)

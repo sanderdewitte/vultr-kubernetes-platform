@@ -2,7 +2,7 @@ import pulumi
 import ediri_vultr as vultr
 
 
-def create_cluster(settings, vultr_provider):
+def create_cluster(settings, vultr_provider) -> vultr.Kubernetes:
 
     return vultr.Kubernetes(
         settings.cluster_name,
