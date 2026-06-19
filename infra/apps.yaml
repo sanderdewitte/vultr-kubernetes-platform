@@ -1,5 +1,6 @@
 authentik:
   namespace: true
+  database: true
   secret_requirements:
     - postgresql_password
     - secret_key
