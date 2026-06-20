@@ -16,7 +16,7 @@ def create_postgresql_namespace(kubernetes_provider) -> k8s.core.v1.Namespace:
     )
 
 
-def create_postgresql_cluster(kubernetes_provider, namespace) -> k8s.apiextensions.CustomResource:
+def create_postgresql_cluster(kubernetes_provider, namespace, postgresql_superuser_secret, postgresql_app_secret) -> k8s.apiextensions.CustomResource:
 
     cluster = k8s.apiextensions.CustomResource(
         POSTGRESQL_CLUSTER_NAME,
@@ -29,14 +29,14 @@ def create_postgresql_cluster(kubernetes_provider, namespace) -> k8s.apiextensio
         spec={
             "instances": 1,
             "superuserSecret": {
-                "name": "postgresql-superuser",
+                "name": postgresql_superuser_secret.metadata["name"],
             },
             "bootstrap": {
                 "initdb": {
                     "database": "platform",
                     "owner": "platform",
                     "secret": {
-                        "name": "postgresql-app",
+                        "name": postgresql_app_secret.metadata["name"],
                     },
                 },
             },
@@ -46,7 +46,11 @@ def create_postgresql_cluster(kubernetes_provider, namespace) -> k8s.apiextensio
         },
         opts=pulumi.ResourceOptions(
             provider=kubernetes_provider,
-            depends_on=[namespace],
+            depends_on=[
+                namespace,
+                postgresql_superuser_secret,
+                postgresql_app_secret,
+            ],
         ),
     )
 

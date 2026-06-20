@@ -1,3 +1,6 @@
 CERT_MANAGER_NAMESPACE = "cert-manager"
 PLATFORM_DATABASE_NAMESPACE = "platform-database"
 POSTGRESQL_CLUSTER_NAME = "postgresql"
+POSTGRESQL_SUPERUSER_SECRET_KEY = "postgresql_superuser"
+POSTGRESQL_APP_SECRET_KEY = "postgresql_app"
+VULTR_CREDENTIALS_SECRET_KEY = "vultr_credentials"

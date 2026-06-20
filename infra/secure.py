@@ -1,6 +1,6 @@
 import pulumi
 import pulumi_kubernetes as k8s
-from constants import CERT_MANAGER_NAMESPACE, PLATFORM_DATABASE_NAMESPACE
+from constants import CERT_MANAGER_NAMESPACE, PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY, VULTR_CREDENTIALS_SECRET_KEY
 
 
 def get_domain_application_namespace(settings, application: str, domain_name: str) -> str:
@@ -9,11 +9,13 @@ def get_domain_application_namespace(settings, application: str, domain_name: st
 
     return f"{application}-{domain_slug}"
 
+
 def get_domain_application_database_identifier(settings, application: str, domain_name: str) -> str:
 
     domain_identifier = settings.domain_to_identifier(domain_name)
 
     return f"{application}_{domain_identifier}"
+
 
 def create_domain_application_database_secret(settings, kubernetes_provider, domain_application: str, domain_name: str) -> tuple[str, k8s.core.v1.Secret]:
 
@@ -51,6 +53,7 @@ def create_domain_application_database_secret(settings, kubernetes_provider, dom
 
     return database_secret_name, secret
 
+
 def create_domain_application_namespace(kubernetes_provider, namespace_name: str) -> k8s.core.v1.Namespace:
 
     return k8s.core.v1.Namespace(
@@ -62,6 +65,7 @@ def create_domain_application_namespace(kubernetes_provider, namespace_name: str
             provider=kubernetes_provider,
         ),
     )
+
 
 def create_domain_application_secret(settings, kubernetes_provider, domain_application: str, domain_name: str, namespace_name: str, secret_requirement: str, namespace) -> tuple[str, k8s.core.v1.Secret]:
 
@@ -101,12 +105,15 @@ def create_domain_application_secret(settings, kubernetes_provider, domain_appli
 
     return resource_name, secret
 
+
 def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
 
+    vultr_credentials_secret_name = settings.secret_to_slug(VULTR_CREDENTIALS_SECRET_KEY)
+    vultr_credentials_resource_name = f"{CERT_MANAGER_NAMESPACE}-{vultr_credentials_secret_name}"
     vultr_credentials = k8s.core.v1.Secret(
-        "cert-manager-vultr-credentials",
+        vultr_credentials_resource_name,
         metadata={
-            "name": "vultr-credentials",
+            "name": vultr_credentials_secret_name,
             "namespace": CERT_MANAGER_NAMESPACE,
         },
         string_data={
@@ -119,10 +126,11 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
         ),
     )
 
+    postgresql_superuser_secret_name = settings.secret_to_slug(POSTGRESQL_SUPERUSER_SECRET_KEY)
     postgresql_superuser = k8s.core.v1.Secret(
-        "postgresql-superuser",
+        postgresql_superuser_secret_name,
         metadata={
-            "name": "postgresql-superuser",
+            "name": postgresql_superuser_secret_name,
             "namespace": PLATFORM_DATABASE_NAMESPACE,
         },
         string_data={
@@ -136,10 +144,11 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
         ),
     )
 
+    postgresql_app_secret_name = settings.secret_to_slug(POSTGRESQL_APP_SECRET_KEY)
     postgresql_app = k8s.core.v1.Secret(
-        "postgresql-app",
+        postgresql_app_secret_name,
         metadata={
-            "name": "postgresql-app",
+            "name": postgresql_app_secret_name,
             "namespace": PLATFORM_DATABASE_NAMESPACE,
         },
         string_data={
@@ -209,9 +218,9 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
                     domain_application_secrets[resource_name] = secret
 
     return {
-        "vultr_credentials": vultr_credentials,
-        "postgresql_superuser": postgresql_superuser,
-        "postgresql_app": postgresql_app,
+        VULTR_CREDENTIALS_SECRET_KEY: vultr_credentials,
+        POSTGRESQL_SUPERUSER_SECRET_KEY: postgresql_superuser,
+        POSTGRESQL_APP_SECRET_KEY: postgresql_app,
         "domain_application_namespaces": domain_application_namespaces,
         "domain_application_secrets": domain_application_secrets,
         "domain_application_database_secrets": domain_application_database_secrets,

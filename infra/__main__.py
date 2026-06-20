@@ -15,6 +15,7 @@ from worker_node import get_first_worker_public_ip
 from dns import create_dns_records
 from secure import create_kubernetes_secrets
 from database import create_postgresql_namespace, create_postgresql_cluster
+from constants import POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY
 from outputs import export_outputs
 
 # Configuration
@@ -36,7 +37,12 @@ kubernetes_secrets = create_kubernetes_secrets(settings, kubernetes_provider)
 
 # PostgreSQL platform database
 postgresql_namespace = create_postgresql_namespace(kubernetes_provider)
-postgresql_cluster = create_postgresql_cluster(kubernetes_provider=kubernetes_provider, namespace=postgresql_namespace)
+postgresql_cluster = create_postgresql_cluster(
+    kubernetes_provider=kubernetes_provider,
+    namespace=postgresql_namespace,
+    postgresql_superuser_secret=kubernetes_secrets[POSTGRESQL_SUPERUSER_SECRET_KEY],
+    postgresql_app_secret=kubernetes_secrets[POSTGRESQL_APP_SECRET_KEY],
+)
 
 # Outputs
 export_outputs(cluster, platform_ip, dns_records)
