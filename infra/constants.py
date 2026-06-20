@@ -1,0 +1,3 @@
+CERT_MANAGER_NAMESPACE = "cert-manager"
+PLATFORM_DATABASE_NAMESPACE = "platform-database"
+POSTGRESQL_CLUSTER_NAME = "postgresql"

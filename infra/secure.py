@@ -1,9 +1,6 @@
 import pulumi
 import pulumi_kubernetes as k8s
-
-
-CERT_MANAGER_NAMESPACE = "cert-manager"
-PLATFORM_DATABASE_NAMESPACE = "platform-database"
+from constants import CERT_MANAGER_NAMESPACE, PLATFORM_DATABASE_NAMESPACE
 
 
 def get_domain_application_namespace(settings, application: str, domain_name: str) -> str:

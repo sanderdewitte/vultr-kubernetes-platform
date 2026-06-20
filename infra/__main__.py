@@ -2,8 +2,9 @@
 """
 Pulumi entrypoint for the Vultr Kubernetes platform.
 
-This file orchestrates resource creation by calling the
-individual modules (config, cluster, worker_node, dns, outputs).
+This file orchestrates resource creation by calling individual
+modules for configuration, providers, the Kubernetes cluster,
+worker node lookup, DNS, secrets, platform database and outputs.
 """
 
 # Imports
@@ -13,18 +14,29 @@ from cluster import create_cluster
 from worker_node import get_first_worker_public_ip
 from dns import create_dns_records
 from secure import create_kubernetes_secrets
+from database import create_postgresql_namespace, create_postgresql_cluster
 from outputs import export_outputs
 
 # Configuration
 settings = Settings()
 
-# Resources
+# Infrastructure provider
 vultr_provider = create_vultr_provider(settings)
+
+# Kubernetes cluster
 cluster = create_cluster(settings, vultr_provider)
 kubernetes_provider = create_kubernetes_provider(cluster)
 platform_ip = get_first_worker_public_ip(cluster, vultr_provider)
+
+# DNS
 dns_records = create_dns_records(settings, platform_ip, vultr_provider)
+
+# Secrets
 kubernetes_secrets = create_kubernetes_secrets(settings, kubernetes_provider)
+
+# PostgreSQL platform database
+postgresql_namespace = create_postgresql_namespace(kubernetes_provider)
+postgresql_cluster = create_postgresql_cluster(kubernetes_provider=kubernetes_provider, namespace=postgresql_namespace)
 
 # Outputs
 export_outputs(cluster, platform_ip, dns_records)
