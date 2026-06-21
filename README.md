@@ -102,7 +102,8 @@ Implemented:
 - cert-manager Vultr webhook
 - Let's Encrypt certificate automation using DNS-01
 - CloudNativePG operator
-- Shared PostgreSQL platform database.
+- Shared PostgreSQL platform database cluster
+- Automatic PostgreSQL role and database provisioning for applications
 
 Planned / next steps:
 
@@ -124,9 +125,15 @@ GitHub Repository
 
 ### Directory responsibilities
 
-`infra/` contains the Pulumi program. It creates and updates Vultr infrastructure, including the VKE cluster and Vultr DNS records.
+`infra/` contains the Pulumi program. It creates and updates Vultr infrastructure, including:
 
-`platform/` contains Kubernetes platform configuration managed by Argo CD. The root Argo CD application watches this directory recursively. Platform components such as Traefik live directly under `platform/`, while normal application `Application` objects live under `platform/apps/`.
+- VKE cluster
+- Vultr DNS records
+- Shared PostgreSQL platform resources
+- Application-specific PostgreSQL roles and databases
+- Kubernetes secrets required by platform services and applications
+
+`platform/` contains Kubernetes platform configuration managed by Argo CD. The root Argo CD application watches this directory recursively. Platform components such as Traefik live directly under `platform/`, while normal application `Application` objects live under `platform/apps/`. The CloudNativePG operator itself is deployed through Argo CD from the `platform` directory. The PostgreSQL cluster, roles and databases are managed by Pulumi and therefore do not appear as manifests under `platform/`.
 
 `apps/` contains the actual Kubernetes manifests for application workloads.
 
@@ -147,6 +154,9 @@ The current pattern is:
     │       ├── values.yaml
     │       └── secret-reader-rbac.yaml
     ├── traefik/
+    │   ├── application.yaml
+    │   └── values.yaml
+    ├── cloudnative-pg/
     │   ├── application.yaml
     │   └── values.yaml
     └── apps/
@@ -505,6 +515,31 @@ Then delete the initial secret:
 ```bash
 kubectl -n argocd delete secret argocd-initial-admin-secret
 ```
+### Application database provisioning
+
+Applications can declare database requirements through `infra/apps.yaml`.
+
+Example:
+
+```yaml
+authentik:
+  namespace: true
+  database: true
+  secret_requirements:
+    - postgresql_password
+    - secret_key
+```
+
+When `database: true` is specified, Pulumi automatically creates:
+
+* A PostgreSQL login role
+* A PostgreSQL database owned by that role
+* A Kubernetes Secret containing the database credentials in the `platform-database` namespace
+
+The role and database names are derived deterministically from the application name and domain name.
+
+This allows new applications to obtain dedicated PostgreSQL resources through configuration rather than manual database administration.
+
 ## Activate GitOps (repository and root application)
 
 At this point, Argo CD is installed but not yet managing any resources from Git.
