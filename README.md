@@ -390,7 +390,7 @@ Pulumi reads `infra/secrets.local.env` directly from Python. The file does not n
 
 ### Deploy infrastructure
 
-After configuring the Vultr API key, one can deploy the infrastructure.
+After configuring the Vultr API key and the platform database secrets, one can deploy the infrastructure.
 
 ```bash
 cd infra
