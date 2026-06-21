@@ -40,7 +40,7 @@ Kubernetes ClusterIP services
 Application pods
 ```
 
-Traefik is the only component exposed directly on the worker node. Application workloads should normally use `ClusterIP` Services and be exposed through Traefik using Kubernetes `Ingress` or Traefik `IngressRoute` resources.
+Traefik is the only component exposed directly on the worker node. Application workloads should normally use `ClusterIP` Services and rely on Traefik for external HTTP and HTTPS access.
 
 The Traefik container listens on unprivileged ports `8000` and `8443`, while Kubernetes maps the node host ports `80` and `443` to those container ports. This allows Traefik to run without binding directly to privileged ports inside the container.
 
