@@ -135,7 +135,7 @@ GitHub Repository
 
 `platform/` contains Kubernetes platform configuration managed by Argo CD. The root Argo CD application watches this directory recursively. Platform components such as Traefik live directly under `platform/`, while normal application `Application` objects live under `platform/apps/`. The CloudNativePG operator itself is deployed through Argo CD from the `platform` directory. The PostgreSQL cluster, roles and databases are managed by Pulumi and therefore do not appear as manifests under `platform/`.
 
-`apps/` contains the actual Kubernetes manifests for application workloads.
+`apps/` contains the actual Kubernetes manifests for application workloads. `platform/apps/` contains Argo CD "Application" objects that tell Argo CD which applications to deploy. The actual application manifests and/or Helm configuration live under `apps/`.
 
 The current pattern is:
 
