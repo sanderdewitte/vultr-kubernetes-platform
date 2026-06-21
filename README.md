@@ -297,6 +297,20 @@ Explanation:
 - uv manages Python dependencies inside the `infra/` directory.
 - Ensure the shell has access to the Pulumi binary before running commands.
 
+## Initial setup
+
+### Create Pulumi Configuration
+
+`prd` is the Pulumi stack name chosen for the production instance of this small platform.
+
+Copy the sample configuration:
+
+```bash
+cp Pulumi.sample.yaml Pulumi.prd.yaml
+```
+
+Edit `Pulumi.prd.yaml` and adjust the values for your environment.
+
 ### Get available Kubernetes versions (Vultr)
 
 You can query available VKE versions without installing any tools using Docker and a Vultr API key:
@@ -319,20 +333,6 @@ with:
 config:
   vultr-kubernetes-platform:kubernetes_version: v1.xx.x+1
 ```
-
-## Initial setup
-
-### Create Pulumi Configuration
-
-`prd` is the Pulumi stack name chosen for the production instance of this small platform.
-
-Copy the sample configuration:
-
-```bash
-cp Pulumi.sample.yaml Pulumi.prd.yaml
-```
-
-Edit `Pulumi.prd.yaml` and adjust the values for your environment.
 
 ### Initialize Pulumi Stack
 
