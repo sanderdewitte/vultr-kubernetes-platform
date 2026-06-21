@@ -28,11 +28,13 @@ def create_dns_records(settings, platform_ip, vultr_provider) -> dict[str, vultr
     records = {}
 
     for domain in settings.domains:
+
         domain_name = domain["name"]
         domain_ttl = domain.get("ttl", settings.dns_ttl)
         resource_prefix = get_resource_prefix(settings, domain_name)
 
         if domain.get("apex", True):
+
             resource_name = f"{resource_prefix}-apex-a"
 
             records[resource_name] = vultr.DnsRecord(
@@ -49,6 +51,7 @@ def create_dns_records(settings, platform_ip, vultr_provider) -> dict[str, vultr
             )
 
         if domain.get("wildcard", False):
+
             resource_name = f"{resource_prefix}-wildcard-cname"
 
             records[resource_name] = vultr.DnsRecord(
@@ -66,6 +69,7 @@ def create_dns_records(settings, platform_ip, vultr_provider) -> dict[str, vultr
             )
 
         for record in domain.get("records", []):
+
             record_name = record["name"]
             record_type = record["type"]
             record_data = record["data"]
