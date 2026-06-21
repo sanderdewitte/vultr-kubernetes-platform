@@ -1,20 +1,8 @@
 import pulumi
 import pulumi_kubernetes as k8s
+
 from constants import CERT_MANAGER_NAMESPACE, PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY, VULTR_CREDENTIALS_SECRET_KEY
-
-
-def get_domain_application_namespace(settings, application: str, domain_name: str) -> str:
-
-    domain_slug = settings.domain_to_slug(domain_name)
-
-    return f"{application}-{domain_slug}"
-
-
-def get_domain_application_database_identifier(settings, application: str, domain_name: str) -> str:
-
-    domain_identifier = settings.domain_to_identifier(domain_name)
-
-    return f"{application}_{domain_identifier}"
+from app_naming import get_domain_application_namespace, get_domain_application_database_identifier, get_domain_application_database_secret_name
 
 
 def create_domain_application_database_secret(settings, kubernetes_provider, domain_application: str, domain_name: str) -> tuple[str, k8s.core.v1.Secret]:
@@ -24,8 +12,10 @@ def create_domain_application_database_secret(settings, kubernetes_provider, dom
         application=domain_application,
         domain_name=domain_name,
     )
-    database_secret_name = (
-        f"{settings.secret_to_slug(database_identifier)}-postgresql"
+    database_secret_name = get_domain_application_database_secret_name(
+        settings=settings,
+        application=domain_application,
+        domain_name=domain_name,
     )
 
     secret = k8s.core.v1.Secret(
@@ -69,15 +59,15 @@ def create_domain_application_namespace(kubernetes_provider, namespace_name: str
 
 def create_domain_application_secret(settings, kubernetes_provider, domain_application: str, domain_name: str, namespace_name: str, secret_requirement: str, namespace) -> tuple[str, k8s.core.v1.Secret]:
 
-    secret_key = settings.secret_to_slug(secret_requirement)
+    secret_key = settings.identifier_to_slug(secret_requirement)
     secret_name = (
         f"{domain_application}-"
-        f"{settings.secret_to_slug(secret_requirement)}"
+        f"{settings.identifier_to_slug(secret_requirement)}"
     )
     resource_name = (
         f"{domain_application}-"
         f"{settings.domain_to_slug(domain_name)}-"
-        f"{settings.secret_to_slug(secret_requirement)}"
+        f"{settings.identifier_to_slug(secret_requirement)}"
     )
 
     secret = k8s.core.v1.Secret(
@@ -108,7 +98,7 @@ def create_domain_application_secret(settings, kubernetes_provider, domain_appli
 
 def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
 
-    vultr_credentials_secret_name = settings.secret_to_slug(VULTR_CREDENTIALS_SECRET_KEY)
+    vultr_credentials_secret_name = settings.identifier_to_slug(VULTR_CREDENTIALS_SECRET_KEY)
     vultr_credentials_resource_name = f"{CERT_MANAGER_NAMESPACE}-{vultr_credentials_secret_name}"
     vultr_credentials = k8s.core.v1.Secret(
         vultr_credentials_resource_name,
@@ -126,7 +116,7 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
         ),
     )
 
-    postgresql_superuser_secret_name = settings.secret_to_slug(POSTGRESQL_SUPERUSER_SECRET_KEY)
+    postgresql_superuser_secret_name = settings.identifier_to_slug(POSTGRESQL_SUPERUSER_SECRET_KEY)
     postgresql_superuser = k8s.core.v1.Secret(
         postgresql_superuser_secret_name,
         metadata={
@@ -144,7 +134,7 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
         ),
     )
 
-    postgresql_app_secret_name = settings.secret_to_slug(POSTGRESQL_APP_SECRET_KEY)
+    postgresql_app_secret_name = settings.identifier_to_slug(POSTGRESQL_APP_SECRET_KEY)
     postgresql_app = k8s.core.v1.Secret(
         postgresql_app_secret_name,
         metadata={

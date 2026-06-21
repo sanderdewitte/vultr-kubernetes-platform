@@ -1,6 +1,8 @@
 import pulumi
 import pulumi_kubernetes as k8s
+
 from constants import PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_CLUSTER_NAME
+from app_naming import get_domain_application_database_identifier, get_domain_application_database_secret_name
 
 
 def create_postgresql_namespace(kubernetes_provider) -> k8s.core.v1.Namespace:
@@ -16,7 +18,7 @@ def create_postgresql_namespace(kubernetes_provider) -> k8s.core.v1.Namespace:
     )
 
 
-def create_postgresql_cluster(kubernetes_provider, namespace, postgresql_superuser_secret, postgresql_app_secret) -> k8s.apiextensions.CustomResource:
+def create_postgresql_cluster(settings, kubernetes_provider, namespace, postgresql_superuser_secret, postgresql_app_secret) -> k8s.apiextensions.CustomResource:
 
     cluster = k8s.apiextensions.CustomResource(
         POSTGRESQL_CLUSTER_NAME,
@@ -30,6 +32,9 @@ def create_postgresql_cluster(kubernetes_provider, namespace, postgresql_superus
             "instances": 1,
             "superuserSecret": {
                 "name": postgresql_superuser_secret.metadata["name"],
+            },
+            "managed": {
+                "roles": get_domain_application_database_roles(settings),
             },
             "bootstrap": {
                 "initdb": {
@@ -55,3 +60,91 @@ def create_postgresql_cluster(kubernetes_provider, namespace, postgresql_superus
     )
 
     return cluster
+
+def get_domain_application_database_roles(settings) -> list[dict]:
+
+    managed_roles = []
+
+    for domain in settings.domains:
+
+        domain_name = domain["name"]
+
+        for domain_application in domain.get("applications", []):
+
+            application_config = settings.supported_applications[domain_application]
+
+            if not application_config.get("database", False):
+                continue
+
+            database_identifier = get_domain_application_database_identifier(
+                settings=settings,
+                application=domain_application,
+                domain_name=domain_name,
+            )
+
+            database_secret_name = get_domain_application_database_secret_name(
+                settings=settings,
+                application=domain_application,
+                domain_name=domain_name,
+            )
+
+            managed_roles.append(
+                {
+                    "name": database_identifier,
+                    "ensure": "present",
+                    "login": True,
+                    "superuser": False,
+                    "passwordSecret": {
+                        "name": database_secret_name,
+                    },
+                }
+            )
+
+    return managed_roles
+
+
+def create_domain_application_databases(settings, kubernetes_provider, postgresql_cluster) -> dict[str, k8s.apiextensions.CustomResource]:
+
+    databases = {}
+
+    for domain in settings.domains:
+
+        domain_name = domain["name"]
+
+        for domain_application in domain.get("applications", []):
+
+            application_config = settings.supported_applications[domain_application]
+
+            if not application_config.get("database", False):
+                continue
+
+            database_identifier = get_domain_application_database_identifier(
+                settings=settings,
+                application=domain_application,
+                domain_name=domain_name,
+            )
+
+            database_resource_name = settings.identifier_to_slug(database_identifier)
+
+            databases[database_resource_name] = k8s.apiextensions.CustomResource(
+                database_resource_name,
+                api_version="postgresql.cnpg.io/v1",
+                kind="Database",
+                metadata={
+                    "name": database_resource_name,
+                    "namespace": PLATFORM_DATABASE_NAMESPACE,
+                },
+                spec={
+                    "name": database_identifier,
+                    "owner": database_identifier,
+                    "cluster": {
+                        "name": POSTGRESQL_CLUSTER_NAME,
+                    },
+                },
+                opts=pulumi.ResourceOptions(
+                    provider=kubernetes_provider,
+                    depends_on=[postgresql_cluster],
+                ),
+            )
+
+    return databases

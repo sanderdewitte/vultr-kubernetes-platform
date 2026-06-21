@@ -43,17 +43,17 @@ class Settings:
         self.validate()
 
     @staticmethod
-    def secret_to_slug(secret_name) -> str:
+    def identifier_to_slug(identifier: str) -> str:
 
-        return secret_name.lower().replace("_", "-")
+        return identifier.lower().replace("_", "-")
 
     @staticmethod
-    def domain_to_slug(domain_name) -> str:
+    def domain_to_slug(domain_name: str) -> str:
 
         return domain_name.lower().replace(".", "-")
 
     @staticmethod
-    def domain_to_identifier(domain_name) -> str:
+    def domain_to_identifier(domain_name: str) -> str:
 
         return domain_name.lower().replace(".", "_")
 
