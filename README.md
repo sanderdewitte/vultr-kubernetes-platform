@@ -11,6 +11,7 @@ The platform is designed to be simple, reproducible, cost-conscious and easy to 
 - Use Infrastructure as Code for Vultr resources, shared platform services and application prerequisites.
 - Use GitOps for Kubernetes platform components and applications.
 - Avoid unnecessary managed services unless they clearly reduce maintenance.
+- Prefer secure-by-default configurations and well-established open-source technologies.
 - Keep the repository structure readable and predictable.
 
 ## Target architecture
