@@ -8,7 +8,7 @@ The platform is designed to be simple, reproducible, cost-conscious and easy to 
 
 - Deploy a small managed Kubernetes cluster on Vultr Kubernetes Engine (VKE).
 - Keep monthly costs low.
-- Use Infrastructure as Code for Vultr resources.
+- Use Infrastructure as Code for Vultr resources, shared platform services and application prerequisites.
 - Use GitOps for Kubernetes platform components and applications.
 - Avoid unnecessary managed services unless they clearly reduce maintenance.
 - Keep the repository structure readable and predictable.
