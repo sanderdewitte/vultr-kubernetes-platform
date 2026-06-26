@@ -29,6 +29,7 @@ class Settings:
 
         config = pulumi.Config()
 
+        self.repository_url = config.require("repository_url")
         self.region = config.get("region") or "ams"
         self.cluster_name = config.get("cluster_name") or "vke-prd-01"
         self.kubernetes_version = config.require("kubernetes_version")

@@ -25,6 +25,9 @@ ARGOCD_INSTALL_URL="https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_
 FORCE_REINSTALL="false"
 BOOTSTRAP_ROOT_APP="false"
 ROLLOUT_TIMEOUT="300s"
+PULUMI_STACK="prd"
+INFRA_CONFIG_FILE=""
+DEFAULT_KUBECONFIG="${HOME}/.kube/config"
 
 # =========================
 # Logging helpers
@@ -65,7 +68,8 @@ Usage: $SCRIPT_NAME [options]
 Options:
   --bootstrap-root-app  Apply the Argo CD root application
   --force-reinstall     Re-apply the Argo CD install manifest even if Argo CD exists
-  --timeout VALUE       Rollout timeout for argocd-server (e.g. 300s, 10m)
+  --timeout VALUE       Rollout timeout for argocd-server (e.g. 300s, 10m, default: 300s)
+  --stack VALUE         Pulumi stack name used to read infra/Pulumi.<stack>.yaml (default: prd)
   -h, --help            Show this help
 EOF
 }
@@ -86,6 +90,11 @@ parse_args() {
         ROLLOUT_TIMEOUT="$2"
         shift 2
         ;;
+      --stack)
+        [[ $# -ge 2 ]] || fail "Missing value for --stack"
+        PULUMI_STACK="$2"
+        shift 2
+        ;;
       -h|--help)
         usage
         exit 0
@@ -103,11 +112,6 @@ parse_args() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"
-}
-
-require_env() {
-  local var_name="$1"
-  [[ -n "${!var_name:-}" ]] || fail "Required environment variable is not set: ${var_name}"
 }
 
 namespace_exists() {
@@ -130,13 +134,30 @@ set_working_directory() {
   log "Working directory: $REPO_ROOT"
 }
 
+set_kubeconfig() {
+  if [[ -n "${KUBECONFIG:-}" ]]; then
+    [[ -f "$KUBECONFIG" ]] || fail "KUBECONFIG file not found: $KUBECONFIG"
+    [[ -r "$KUBECONFIG" ]] || fail "KUBECONFIG file is not readable: $KUBECONFIG"
+    log "Using kubeconfig from KUBECONFIG: ${KUBECONFIG}"
+    return
+  fi
+  if [[ -f "$DEFAULT_KUBECONFIG" ]]; then
+    export KUBECONFIG="$DEFAULT_KUBECONFIG"
+    log "Using default kubeconfig: ${KUBECONFIG}"
+    return
+  fi
+  fail "KUBECONFIG is not set and default kubeconfig was not found: ${DEFAULT_KUBECONFIG}"
+}
+
+set_infra_config_file() {
+  INFRA_CONFIG_FILE="${REPO_ROOT}/infra/Pulumi.${PULUMI_STACK}.yaml"
+  log "Using infrastructure config: ${INFRA_CONFIG_FILE}"
+}
+
 check_requirements() {
   log "Checking requirements"
   require_command kubectl
   require_command curl
-  require_env VULTR_API_KEY
-  require_env KUBECONFIG
-  [[ -f "$KUBECONFIG" ]] || fail "KUBECONFIG file not found: $KUBECONFIG"
 }
 
 check_cluster_access() {
@@ -145,6 +166,52 @@ check_cluster_access() {
   kubectl cluster-info >/dev/null
   context="$(kubectl config current-context)"
   log "Current Kubernetes context: ${context}"
+}
+
+get_expected_repository_url() {
+  awk -F': ' '
+    $1 ~ /^[[:space:]]*vultr-kubernetes-platform:repository_url$/ {
+      print $2
+      exit
+    }
+  ' "$INFRA_CONFIG_FILE"
+}
+
+is_git_repository_url() {
+  local url="$1"
+  [[ "$url" == *.git ]] && return 0
+  [[ "$url" == git@* ]] && return 0
+  [[ "$url" == ssh://git@* ]] && return 0
+  return 1
+}
+
+check_repository_urls() {
+  local expected_repository_url
+  local mismatches=0
+  local file
+  local repo_url
+  log "Checking Argo CD Git repository URLs"
+  [[ -f "$INFRA_CONFIG_FILE" ]] || fail "Infrastructure config file not found: ${INFRA_CONFIG_FILE}"
+  [[ -r "$INFRA_CONFIG_FILE" ]] || fail "Infrastructure config file is not readable: ${INFRA_CONFIG_FILE}"
+  expected_repository_url="$(get_expected_repository_url)"
+  [[ -n "$expected_repository_url" ]] || fail "repository_url is not set in ${INFRA_CONFIG_FILE}"
+  while IFS= read -r file; do
+    while IFS= read -r repo_url; do
+      if ! is_git_repository_url "$repo_url"; then
+        continue
+      fi
+      if [[ "$repo_url" != "$expected_repository_url" ]]; then
+        log "Repository URL mismatch in ${file}"
+        log "Expected: ${expected_repository_url}"
+        log "Found:    ${repo_url}"
+        mismatches=$((mismatches + 1))
+      fi
+    done < <(awk -F'repoURL:[[:space:]]*' '/repoURL:[[:space:]]*/ { print $2 }' "$file")
+  done < <(find "${REPO_ROOT}/platform" -type f \( -name '*.yaml' -o -name '*.yml' \) | sort)
+  if [[ "$mismatches" -gt 0 ]]; then
+    fail "Found ${mismatches} Argo CD Git repository URL mismatch(es)"
+  fi
+  log "Argo CD Git repository URLs are consistent"
 }
 
 ensure_namespace() {
@@ -226,8 +293,11 @@ print_next_steps() {
 main() {
   parse_args "$@"
   set_working_directory
+  set_infra_config_file
+  set_kubeconfig
   check_requirements
   check_cluster_access
+  check_repository_urls
   ensure_namespace
   install_argocd
   wait_for_argocd
