@@ -2,7 +2,7 @@ import pulumi
 import pulumi_kubernetes as k8s
 
 from app_naming import get_domain_application_namespace
-from constants import ARGOCD_NAMESPACE
+from constants import ARGOCD_API_VERSION, ARGOCD_APPLICATION_KIND, ARGOCD_NAMESPACE
 
 
 def create_domain_application_argocd_applications(settings, kubernetes_provider, domain_application_namespaces: dict) -> dict[str, k8s.apiextensions.CustomResource]:
@@ -25,8 +25,8 @@ def create_domain_application_argocd_applications(settings, kubernetes_provider,
 
             applications[resource_name] = k8s.apiextensions.CustomResource(
                 resource_name,
-                api_version="argoproj.io/v1alpha1",
-                kind="Application",
+                api_version=ARGOCD_API_VERSION,
+                kind=ARGOCD_APPLICATION_KIND,
                 metadata={
                     "name": resource_name,
                     "namespace": ARGOCD_NAMESPACE,
