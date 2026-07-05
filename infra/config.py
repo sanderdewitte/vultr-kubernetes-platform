@@ -74,6 +74,12 @@ class Settings:
 
         return os.environ.get(self.get_domain_secret_env_name(application, domain_name, secret_name))
 
+    def domain_applications(self, domain_name: str) -> dict:
+
+        domain = next(d for d in self.domains if d["name"] == domain_name)
+
+        return {application: self.supported_applications[application] for application in domain.get("applications", [])}
+
     def validate(self) -> None:
 
         for env_name, value in [
