@@ -1,7 +1,7 @@
 import pulumi
 import pulumi_kubernetes as k8s
 
-from constants import CERT_MANAGER_NAMESPACE, PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY, VULTR_CREDENTIALS_SECRET_KEY
+from constants import VULTR_CREDENTIALS_SECRET_KEY, CERT_MANAGER_NAMESPACE, PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY, DOMAIN_APPLICATION_NAMESPACES_KEY
 from app_naming import get_domain_application_namespace, get_domain_application_database_identifier, get_domain_application_database_secret_name
 
 
@@ -160,9 +160,7 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
 
         domain_name = domain["name"]
 
-        for domain_application in domain.get("applications", []):
-
-            application_config = settings.supported_applications[domain_application]
+        for domain_application, application_config in settings.domain_applications(domain_name).items():
 
             if application_config.get("database", False):
 
@@ -211,7 +209,7 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
         VULTR_CREDENTIALS_SECRET_KEY: vultr_credentials,
         POSTGRESQL_SUPERUSER_SECRET_KEY: postgresql_superuser,
         POSTGRESQL_APP_SECRET_KEY: postgresql_app,
-        "domain_application_namespaces": domain_application_namespaces,
+        DOMAIN_APPLICATION_NAMESPACES_KEY: domain_application_namespaces,
         "domain_application_secrets": domain_application_secrets,
         "domain_application_database_secrets": domain_application_database_secrets,
     }
