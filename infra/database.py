@@ -1,7 +1,7 @@
 import pulumi
 import pulumi_kubernetes as k8s
 
-from constants import PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_CLUSTER_NAME
+from constants import PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_CLUSTER_NAME, POSTGRESQL_CNPG_API_VERSION
 from app_naming import get_domain_application_database_identifier, get_domain_application_database_secret_name
 
 
@@ -22,7 +22,7 @@ def create_postgresql_cluster(settings, kubernetes_provider, namespace, postgres
 
     cluster = k8s.apiextensions.CustomResource(
         POSTGRESQL_CLUSTER_NAME,
-        api_version="postgresql.cnpg.io/v1",
+        api_version=POSTGRESQL_CNPG_API_VERSION,
         kind="Cluster",
         metadata={
             "name": POSTGRESQL_CLUSTER_NAME,
@@ -69,9 +69,7 @@ def get_domain_application_database_roles(settings) -> list[dict]:
 
         domain_name = domain["name"]
 
-        for domain_application in domain.get("applications", []):
-
-            application_config = settings.supported_applications[domain_application]
+        for domain_application, application_config in settings.domain_applications(domain_name).items():
 
             if not application_config.get("database", False):
                 continue
@@ -111,9 +109,7 @@ def create_domain_application_databases(settings, kubernetes_provider, postgresq
 
         domain_name = domain["name"]
 
-        for domain_application in domain.get("applications", []):
-
-            application_config = settings.supported_applications[domain_application]
+        for domain_application, application_config in settings.domain_applications(domain_name).items():
 
             if not application_config.get("database", False):
                 continue
@@ -128,7 +124,7 @@ def create_domain_application_databases(settings, kubernetes_provider, postgresq
 
             databases[database_resource_name] = k8s.apiextensions.CustomResource(
                 database_resource_name,
-                api_version="postgresql.cnpg.io/v1",
+                api_version=POSTGRESQL_CNPG_API_VERSION,
                 kind="Database",
                 metadata={
                     "name": database_resource_name,
