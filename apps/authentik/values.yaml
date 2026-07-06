@@ -1,0 +1,31 @@
+authentik:
+  secret_key: env://AUTHENTIK_SECRET_KEY
+  postgresql:
+    host: postgresql-rw.platform-database.svc.cluster.local
+    port: 5432
+    password: env://AUTHENTIK_POSTGRESQL__PASSWORD
+  error_reporting:
+    enabled: false
+
+global:
+  env:
+    - name: AUTHENTIK_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: authentik-secret-key
+          key: secret-key
+    - name: AUTHENTIK_POSTGRESQL__PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: authentik-postgresql-password
+          key: postgresql-password
+
+postgresql:
+  enabled: false
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-production
