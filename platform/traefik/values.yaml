@@ -20,6 +20,8 @@ ports:
     hostPort: 80
     expose:
       default: false
+    redirectTo:
+      port: websecure
   websecure:
     port: 8443
     hostPort: 443
