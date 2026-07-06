@@ -15,9 +15,9 @@ from cluster import create_cluster
 from worker_node import get_first_worker_public_ip
 from dns import create_dns_records
 from secure import create_kubernetes_secrets
-from constants import POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY
+from constants import POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY, DOMAIN_APPLICATION_NAMESPACES_KEY
 from database import create_postgresql_namespace, create_postgresql_cluster, create_domain_application_databases
-from apps import create_domain_application_argocd_applications
+from apps import create_argocd_applications   # pyright: ignore[reportAttributeAccessIssue]
 from outputs import export_outputs
 
 # Configuration
@@ -52,11 +52,11 @@ domain_application_databases = create_domain_application_databases(
     postgresql_cluster=postgresql_cluster,
 )
 
-# Domain application Argo CD Applications
-domain_application_argocd_applications = create_domain_application_argocd_applications(
+# Argo CD Applications
+argocd_applications = create_argocd_applications(
     settings=settings,
     kubernetes_provider=kubernetes_provider,
-    domain_application_namespaces=kubernetes_secrets["domain_application_namespaces"],
+    domain_application_namespaces=kubernetes_secrets[DOMAIN_APPLICATION_NAMESPACES_KEY],
 )
 
 # Outputs
