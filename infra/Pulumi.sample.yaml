@@ -4,8 +4,8 @@ config:
   vultr-kubernetes-platform:cluster_name: vke-prd-01
   vultr-kubernetes-platform:kubernetes_version: v1.35.2+1
   vultr-kubernetes-platform:worker_node_plan: vc2-2c-4gb
-  vultr-kubernetes-platform:worker_node_count: "1"
-  vultr-kubernetes-platform:dns_ttl: "300"
+  vultr-kubernetes-platform:worker_node_count: 1
+  vultr-kubernetes-platform:dns_ttl: 300
   vultr-kubernetes-platform:domains:
     - name: example.com
       apex: true
