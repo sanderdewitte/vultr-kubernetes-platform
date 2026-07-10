@@ -1,8 +1,9 @@
 deployment:
   kind: Deployment
   replicas: 1
-  strategy:
-    type: Recreate
+
+updateStrategy:
+  type: Recreate
 
 hostNetwork: false
 
