@@ -21,6 +21,7 @@ ports:
   web:
     port: 8000
     hostPort: 80
+    exposedPort: 80
     expose:
       default: false
     http:
