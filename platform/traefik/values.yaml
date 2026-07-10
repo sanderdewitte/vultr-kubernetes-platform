@@ -26,11 +26,12 @@ ports:
     http:
       redirections:
         entryPoint:
-          to: ":443"
+          to: websecure
           scheme: https
           permanent: true
   websecure:
     port: 8443
     hostPort: 443
+    exposedPort: 443
     expose:
       default: false
