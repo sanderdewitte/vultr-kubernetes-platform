@@ -23,13 +23,14 @@ ports:
     hostPort: 80
     expose:
       default: false
+    http:
+      redirections:
+        entryPoint:
+          to: ":443"
+          scheme: https
+          permanent: true
   websecure:
     port: 8443
     hostPort: 443
     expose:
       default: false
-
-additionalArguments:
-  - --entryPoints.web.http.redirections.entryPoint.to=:443
-  - --entryPoints.web.http.redirections.entryPoint.scheme=https
-  - --entryPoints.web.http.redirections.entryPoint.permanent=true
