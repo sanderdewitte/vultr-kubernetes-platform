@@ -24,8 +24,24 @@ postgresql:
   enabled: false
 
 server:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
   ingress:
     enabled: true
     ingressClassName: traefik
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-production
+
+worker:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
