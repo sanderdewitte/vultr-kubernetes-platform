@@ -36,3 +36,6 @@ ports:
     exposedPort: 443
     expose:
       default: false
+    http:
+      middlewares:
+        - traefik-security-headers@kubernetescrd
