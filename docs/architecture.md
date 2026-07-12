@@ -75,7 +75,7 @@ The Vultr API token is stored outside Git and is written to Kubernetes by Pulumi
 
 CloudNativePG runs a shared PostgreSQL cluster.
 
-Applications can request dedicated database resources through `infra/apps.yaml`.
+Applications can request dedicated database resources through `apps/apps.yaml`.
 
 For each application and domain combination, Pulumi can create:
 
@@ -85,7 +85,7 @@ For each application and domain combination, Pulumi can create:
 
 ## Application model
 
-Applications are defined once in `infra/apps.yaml` and enabled per domain in `Pulumi.<stack>.yaml`.
+Applications are defined once in `apps/apps.yaml` and enabled per domain in `Pulumi.<stack>.yaml`.
 
 Pulumi creates:
 

@@ -76,7 +76,7 @@ Argo CD reconciles
 ### Application change
 
 ```text
-Edit apps/ or infra/apps.yaml
+Edit apps/ and/or apps/apps.yaml
   ↓
 Commit and push
   ↓

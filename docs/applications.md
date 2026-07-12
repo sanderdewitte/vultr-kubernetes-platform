@@ -14,7 +14,7 @@ The platform supports:
 Application metadata is stored in:
 
 ```text
-infra/apps.yaml
+apps/apps.yaml
 ```
 
 Example:
@@ -87,7 +87,7 @@ vultr-kubernetes-platform:domains:
       - authentik
 ```
 
-The Settings validation ensures that every configured application exists in `infra/apps.yaml`.
+The Settings validation ensures that every configured application exists in `apps/apps.yaml`.
 
 ## Helm values
 
@@ -125,7 +125,7 @@ authentik-secret-key
 
 ## Add a new Helm application
 
-1. Add the application to `infra/apps.yaml`.
+1. Add the application to `apps/apps.yaml`.
 2. Add required secret placeholders to `infra/secrets.local.env.sample`.
 3. Add real secret values to `infra/secrets.local.env`.
 4. Create `apps/<application>/values.yaml`.

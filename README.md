@@ -130,12 +130,12 @@ Currently implemented or planned:
 ```text
 .
 ├── apps/
+│   ├── apps.yaml
 │   └── authentik/
 │       └── values.yaml
 ├── docs/
 ├── infra/
 │   ├── apps.py
-│   ├── apps.yaml
 │   ├── config.py
 │   ├── database.py
 │   ├── secure.py
