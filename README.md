@@ -27,27 +27,27 @@ The platform intentionally avoids a managed Vultr Load Balancer. Instead, public
 This single-node architecture is an intentional design choice. It keeps the platform inexpensive and easy to understand while still providing a realistic Kubernetes environment for self-hosting. If the platform later grows beyond a single worker node, the ingress architecture can be revisited.
 
 ```text
-           GitHub
-             │
-             ▼
-          Argo CD
-             │
-             ▼
-   ┌───────────────────┐
-   │ Kubernetes        │
-   │ ├── Traefik       │
-   │ ├── cert-manager  │
-   │ ├── CloudNativePG │
-   │ └── Applications  │
-   └───────────────────┘
-             ▲
-             │
-           Pulumi
-           ├── VKE cluster
-           ├── Vultr DNS
-           ├── Namespaces
-           ├── Secrets
-           └── PostgreSQL
+        GitHub
+          │
+          ▼
+       Argo CD
+          │
+          ▼
+┌───────────────────┐
+│ Kubernetes        │
+│ ├── Traefik       │
+│ ├── cert-manager  │
+│ ├── CloudNativePG │
+│ └── Applications  │
+└───────────────────┘
+          ▲
+          │
+        Pulumi
+        ├── VKE cluster
+        ├── Vultr DNS
+        ├── Namespaces
+        ├── Secrets
+        └── PostgreSQL
 ```
 
 The intended HTTP/HTTPS traffic flow is:
