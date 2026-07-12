@@ -41,7 +41,7 @@ When enabled, Pulumi creates a dedicated namespace per application and domain.
 Example:
 
 ```text
-authentik-sanderdewitte-com
+authentik-example-com
 ```
 
 ### `database`
@@ -65,7 +65,7 @@ Defines the application hostname prefix.
 Example:
 
 ```text
-auth + sanderdewitte.com → auth.sanderdewitte.com
+auth + example.com → auth.example.com
 ```
 
 ### `secret_requirements`
