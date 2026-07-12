@@ -6,14 +6,18 @@ from dotenv import load_dotenv
 import pulumi
 
 
-SECRETS_FILE = Path(__file__).parent / "secrets.local.env"
-SUPPORTED_APPLICATIONS_FILE = Path(__file__).parent / "apps.yaml"
+INFRA_DIR = Path(__file__).parent
+BASE_DIR = INFRA_DIR.parent
+
+SECRETS_FILE = INFRA_DIR / "secrets.local.env"
+APPLICATION_CATALOG_FILE = BASE_DIR / "apps" / "apps.yaml"
+
 MIN_DNS_TTL = 60
 
 
-def load_supported_applications() -> dict:
+def load_application_catalog() -> dict:
 
-    with SUPPORTED_APPLICATIONS_FILE.open("r", encoding="utf-8") as file_handle:
+    with APPLICATION_CATALOG_FILE.open("r", encoding="utf-8") as file_handle:
         return yaml.safe_load(file_handle)
 
 
@@ -39,7 +43,7 @@ class Settings:
         self.domains = config.require_object("domains")
         self.primary_domain_name = self.domains[0].get("name") if self.domains else None
 
-        self.supported_applications = load_supported_applications()
+        self.application_catalog = load_application_catalog()
 
         self.validate()
 
@@ -78,7 +82,7 @@ class Settings:
 
         domain = next(d for d in self.domains if d["name"] == domain_name)
 
-        return {application: self.supported_applications[application] for application in domain.get("applications", [])}
+        return {application: self.application_catalog[application] for application in domain.get("applications", [])}
 
     def validate(self) -> None:
 
@@ -108,9 +112,9 @@ class Settings:
         if not self.primary_domain_name:
             raise ValueError("The first domain entry must have a name.")
 
-        if not isinstance(self.supported_applications, dict):
+        if not isinstance(self.application_catalog, dict):
             raise ValueError(
-                f"{SUPPORTED_APPLICATIONS_FILE.name} must contain a dictionary "
+                f"{APPLICATION_CATALOG_FILE.name} must contain a dictionary "
                 "of supported applications."
             )
 
@@ -136,12 +140,12 @@ class Settings:
 
             for domain_application in domain_applications:
 
-                if domain_application not in self.supported_applications:
+                if domain_application not in self.application_catalog:
                     raise ValueError(
                         f"Domain {domain_name}: unknown application '{domain_application}'."
                     )
 
-                application_config = self.supported_applications[domain_application]
+                application_config = self.application_catalog[domain_application]
 
                 if (application_config.get("secret_requirements") and not application_config.get("namespace", False)):
                     raise ValueError(
