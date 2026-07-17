@@ -2,10 +2,7 @@
 
 ## Near term
 
-- Replace the welcome test application with a real `www` application
-- Evaluate Homepage, Homer and Heimdall
-- Update and refine documentation
-- Define Authentik resource requests and limits
+- Deploy Homarr as the first `www` application
 - Configure PostgreSQL backups
 - Document backup restore testing
 - Add shared response-header hardening
