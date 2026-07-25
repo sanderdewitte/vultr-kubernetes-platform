@@ -1,5 +1,6 @@
 VULTR_CREDENTIALS_SECRET_KEY = "vultr_credentials"
 ARGOCD_API_VERSION = "argoproj.io/v1alpha1"
+ARGOCD_APPLICATION_FINALIZER = "resources-finalizer.argocd.argoproj.io"
 ARGOCD_APPLICATION_KIND = "Application"
 ARGOCD_NAMESPACE = "argocd"
 CERT_MANAGER_NAMESPACE = "cert-manager"
