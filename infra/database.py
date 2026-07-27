@@ -71,7 +71,9 @@ def get_domain_application_database_roles(settings) -> list[dict]:
 
         for domain_application, application_config in settings.domain_applications(domain_name).items():
 
-            if not application_config.get("database", False):
+            database_config = application_config.get("database", {})
+
+            if not database_config.get("enabled", False):
                 continue
 
             database_identifier = get_domain_application_database_identifier(
@@ -111,7 +113,9 @@ def create_domain_application_databases(settings, kubernetes_provider, postgresq
 
         for domain_application, application_config in settings.domain_applications(domain_name).items():
 
-            if not application_config.get("database", False):
+            database_config = application_config.get("database", {})
+
+            if not database_config.get("enabled", False):
                 continue
 
             database_identifier = get_domain_application_database_identifier(

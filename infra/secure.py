@@ -162,7 +162,9 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
 
         for domain_application, application_config in settings.domain_applications(domain_name).items():
 
-            if application_config.get("database", False):
+            database_config = application_config.get("database", {})
+
+            if database_config.get("enabled", False):
 
                 resource_name, database_secret = create_domain_application_database_secret(
                     settings=settings,

@@ -35,7 +35,9 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
 
             helm_parameters = []
 
-            if application_config.get("database", False):
+            database_config = application_config.get("database", {})
+
+            if database_config.get("enabled", False):
 
                 database_identifier = (
                     get_domain_application_database_identifier(

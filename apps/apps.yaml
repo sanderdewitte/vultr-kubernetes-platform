@@ -1,6 +1,7 @@
 authentik:
   namespace: true
-  database: true
+  database:
+    enabled: true
   chart:
     repository_url: https://charts.goauthentik.io
     version: 2026.5.3
