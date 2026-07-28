@@ -1,8 +1,21 @@
 import pulumi
 import pulumi_kubernetes as k8s
 
-from constants import VULTR_CREDENTIALS_SECRET_KEY, CERT_MANAGER_NAMESPACE, PLATFORM_DATABASE_NAMESPACE, POSTGRESQL_SUPERUSER_SECRET_KEY, POSTGRESQL_APP_SECRET_KEY, DOMAIN_APPLICATION_NAMESPACES_KEY
-from app_naming import get_domain_application_namespace, get_domain_application_database_identifier, get_domain_application_database_secret_name
+from constants import (
+    VULTR_CREDENTIALS_SECRET_KEY,
+    CERT_MANAGER_NAMESPACE,
+    PLATFORM_DATABASE_NAMESPACE,
+    POSTGRESQL_CLUSTER_NAME,
+    POSTGRESQL_SUPERUSER_SECRET_KEY,
+    POSTGRESQL_APP_SECRET_KEY,
+    DOMAIN_APPLICATION_NAMESPACES_KEY,
+)
+from app_naming import (
+    get_domain_application_namespace,
+    get_domain_application_database_identifier,
+    get_domain_application_database_secret_name,
+    get_domain_application_database_url_secret_name,
+)
 
 
 def create_domain_application_database_secret(settings, kubernetes_provider, domain_application: str, domain_name: str) -> tuple[str, k8s.core.v1.Secret]:
@@ -12,6 +25,7 @@ def create_domain_application_database_secret(settings, kubernetes_provider, dom
         application=domain_application,
         domain_name=domain_name,
     )
+
     database_secret_name = get_domain_application_database_secret_name(
         settings=settings,
         application=domain_application,
@@ -44,6 +58,66 @@ def create_domain_application_database_secret(settings, kubernetes_provider, dom
     return database_secret_name, secret
 
 
+def create_domain_application_database_url_secret(settings, kubernetes_provider, domain_application: str, domain_name: str, namespace_name: str, namespace) -> tuple[str, k8s.core.v1.Secret]:
+
+    database_identifier = get_domain_application_database_identifier(
+        settings=settings,
+        application=domain_application,
+        domain_name=domain_name,
+    )
+
+    database_url_secret_name = (
+        get_domain_application_database_url_secret_name(
+            settings=settings,
+            application=domain_application,
+            domain_name=domain_name,
+        )
+    )
+
+    resource_name = (
+        f"{domain_application}-"
+        f"{settings.domain_to_slug(domain_name)}-"
+        "postgresql-url"
+    )
+
+    database_password = settings.get_domain_secret(
+        application=domain_application,
+        domain_name=domain_name,
+        secret_name="postgresql_password",
+    )
+
+    postgresql_port = 5432
+
+    database_url = pulumi.Output.secret(database_password).apply(
+        lambda password: (
+            f"postgresql://{database_identifier}:{password}"
+            f"@{POSTGRESQL_CLUSTER_NAME}-rw."
+            f"{PLATFORM_DATABASE_NAMESPACE}.svc.cluster.local:"
+            f"{postgresql_port}/"
+            f"{database_identifier}"
+        )
+    )
+
+    secret = k8s.core.v1.Secret(
+        resource_name,
+        metadata={
+            "name": database_url_secret_name,
+            "namespace": namespace_name,
+        },
+        string_data={
+            "url": database_url,
+        },
+        type="Opaque",
+        opts=pulumi.ResourceOptions(
+            provider=kubernetes_provider,
+            protect=True,
+            depends_on=[namespace],
+        ),
+    )
+
+    return resource_name, secret
+
+
 def create_domain_application_namespace(kubernetes_provider, namespace_name: str) -> k8s.core.v1.Namespace:
 
     return k8s.core.v1.Namespace(
@@ -60,10 +134,12 @@ def create_domain_application_namespace(kubernetes_provider, namespace_name: str
 def create_domain_application_secret(settings, kubernetes_provider, domain_application: str, domain_name: str, namespace_name: str, secret_requirement: str, namespace) -> tuple[str, k8s.core.v1.Secret]:
 
     secret_key = settings.identifier_to_slug(secret_requirement)
+
     secret_name = (
         f"{domain_application}-"
         f"{settings.identifier_to_slug(secret_requirement)}"
     )
+
     resource_name = (
         f"{domain_application}-"
         f"{settings.domain_to_slug(domain_name)}-"
@@ -155,6 +231,7 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
     domain_application_namespaces = {}
     domain_application_secrets = {}
     domain_application_database_secrets = {}
+    domain_application_database_url_secrets = {}
 
     for domain in settings.domains:
 
@@ -193,6 +270,21 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
 
             if namespace:
 
+                if database_config.get("connection_url_secret", False):
+
+                    resource_name, database_url_secret = (
+                        create_domain_application_database_url_secret(
+                            settings=settings,
+                            kubernetes_provider=kubernetes_provider,
+                            domain_application=domain_application,
+                            domain_name=domain_name,
+                            namespace_name=namespace_name,
+                            namespace=namespace,
+                        )
+                    )
+
+                    domain_application_database_url_secrets[resource_name] = database_url_secret
+
                 for secret_requirement in application_config.get("secret_requirements", []):
 
                     resource_name, secret = create_domain_application_secret(
@@ -214,4 +306,5 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
         DOMAIN_APPLICATION_NAMESPACES_KEY: domain_application_namespaces,
         "domain_application_secrets": domain_application_secrets,
         "domain_application_database_secrets": domain_application_database_secrets,
+        "domain_application_database_url_secrets": domain_application_database_url_secrets,
     }

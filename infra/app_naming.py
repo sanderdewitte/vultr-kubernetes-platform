@@ -30,3 +30,13 @@ def get_domain_application_database_secret_name(settings, application: str, doma
     )
 
     return f"{settings.identifier_to_slug(database_identifier)}-postgresql"
+
+def get_domain_application_database_url_secret_name(settings, application: str, domain_name: str,) -> str:
+
+    database_identifier = get_domain_application_database_identifier(
+        settings=settings,
+        application=application,
+        domain_name=domain_name,
+    )
+
+    return f"{settings.identifier_to_slug(database_identifier)}-postgresql-url"
