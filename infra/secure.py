@@ -14,7 +14,6 @@ from app_naming import (
     get_domain_application_namespace,
     get_domain_application_database_identifier,
     get_domain_application_database_secret_name,
-    get_domain_application_database_url_secret_name,
 )
 
 
@@ -60,6 +59,14 @@ def create_domain_application_database_secret(settings, kubernetes_provider, dom
 
 def create_domain_application_database_url_secret(settings, kubernetes_provider, domain_application: str, domain_name: str, namespace_name: str, namespace) -> tuple[str, k8s.core.v1.Secret]:
 
+    url_identifier = "url"
+
+    database_secret_suffix = url_identifier
+    database_resource_suffix = f"postgresql-{url_identifier}"
+    database_secret_key = url_identifier
+
+    postgresql_port = 5432
+
     database_identifier = get_domain_application_database_identifier(
         settings=settings,
         application=domain_application,
@@ -67,17 +74,18 @@ def create_domain_application_database_url_secret(settings, kubernetes_provider,
     )
 
     database_url_secret_name = (
-        get_domain_application_database_url_secret_name(
-            settings=settings,
-            application=domain_application,
-            domain_name=domain_name,
+        get_domain_application_database_secret_name(
+            settings,
+            application,
+            domain_name,
+            database_secret_suffix,
         )
     )
 
     resource_name = (
         f"{domain_application}-"
         f"{settings.domain_to_slug(domain_name)}-"
-        "postgresql-url"
+        f"{database_resource_suffix}"
     )
 
     database_password = settings.get_domain_secret(
@@ -85,8 +93,6 @@ def create_domain_application_database_url_secret(settings, kubernetes_provider,
         domain_name=domain_name,
         secret_name="postgresql_password",
     )
-
-    postgresql_port = 5432
 
     database_url = pulumi.Output.secret(database_password).apply(
         lambda password: (
@@ -105,7 +111,7 @@ def create_domain_application_database_url_secret(settings, kubernetes_provider,
             "namespace": namespace_name,
         },
         string_data={
-            "url": database_url,
+           database_secret_key: database_url,
         },
         type="Opaque",
         opts=pulumi.ResourceOptions(
