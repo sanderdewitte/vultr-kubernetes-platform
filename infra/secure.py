@@ -75,10 +75,10 @@ def create_domain_application_database_url_secret(settings, kubernetes_provider,
 
     database_url_secret_name = (
         get_domain_application_database_secret_name(
-            settings,
-            application,
-            domain_name,
-            database_secret_suffix,
+            settings=settings,
+            application=domain_application,
+            domain_name=domain_name,
+            suffix=database_secret_suffix,
         )
     )
 
