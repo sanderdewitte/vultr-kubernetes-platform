@@ -2,7 +2,6 @@ import pulumi
 import pulumi_kubernetes as k8s
 
 from app_naming import get_domain_application_database_identifier, get_domain_application_namespace
-from constants import ARGOCD_API_VERSION, ARGOCD_APPLICATION_KIND, ARGOCD_NAMESPACE
 from constants import ARGOCD_API_VERSION, ARGOCD_APPLICATION_FINALIZER, ARGOCD_APPLICATION_KIND, ARGOCD_NAMESPACE
 
 
