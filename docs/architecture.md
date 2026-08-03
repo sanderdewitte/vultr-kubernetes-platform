@@ -105,3 +105,31 @@ This reduces monthly cost but means the ingress layer is not highly available.
 If the single worker node is unavailable, external access to applications is unavailable.
 
 The Pulumi configuration validates that this architecture is used with exactly one worker node.
+
+## Resource naming
+
+Resources are named programmatically according to the scope in which they must be unique.
+
+### Cluster-wide resources
+
+Resources that share a namespace with other applications include both the application and domain in their name to ensure uniqueness.
+
+Examples:
+
+- `authentik-example-com-postgresql`
+- `homarr-example-com-postgresql`
+
+### Namespace-local resources
+
+Resources that are created inside an application namespace do not repeat the domain name. The namespace already provides uniqueness.
+
+Examples:
+
+Namespace:
+`homarr-example-com`
+
+Resources:
+- `homarr-postgresql-url`
+- `homarr-secret-encryption-key`
+
+This keeps resource names concise and avoids repeating information already encoded in the namespace.
