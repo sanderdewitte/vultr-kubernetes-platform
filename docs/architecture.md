@@ -112,7 +112,7 @@ Resources are named programmatically according to the scope in which they must b
 
 ### Cluster-wide resources
 
-Resources that share a namespace with other applications include both the application and domain in their name to ensure uniqueness.
+Resources that are cluster-wide or shared between applications must include sufficient context (such as application and domain) to guarantee uniqueness.
 
 Examples:
 
@@ -133,3 +133,5 @@ Resources:
 - `homarr-secret-encryption-key`
 
 This keeps resource names concise and avoids repeating information already encoded in the namespace.
+
+It also keeps programmatically generated resource names predictable and allows application-specific configuration files, such as Helm values files, to remain independent of deployment-specific details such as domains. A values file should describe how an application is configured, while domain-specific information should be provided by the deployment layer when resources are generated.
