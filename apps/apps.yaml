@@ -5,7 +5,13 @@ authentik:
   chart:
     repository_url: https://charts.goauthentik.io
     version: 2026.5.3
-  host_prefix: auth
+  default_host_prefix: auth
   secret_requirements:
     - postgresql_password
     - secret_key
+  helm_parameter_paths:
+    database_name: authentik.postgresql.name
+    database_user: authentik.postgresql.user
+    ingress_host: server.ingress.hosts[?]
+    ingress_tls_secret: server.ingress.tls[?].secretName
+    ingress_tls_host: server.ingress.tls[?].hosts[?]

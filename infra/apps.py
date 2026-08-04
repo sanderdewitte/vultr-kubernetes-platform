@@ -1,9 +1,28 @@
 import pulumi
 import pulumi_kubernetes as k8s
 
-from app_naming import get_domain_application_database_identifier, get_domain_application_namespace
-from constants import ARGOCD_API_VERSION, ARGOCD_APPLICATION_FINALIZER, ARGOCD_APPLICATION_KIND, ARGOCD_NAMESPACE
+from app_naming import (
+    get_application_database_url_secret_name,
+    get_domain_application_database_identifier,
+    get_domain_application_namespace,
+)
+from constants import (
+    ARGOCD_API_VERSION,
+    ARGOCD_APPLICATION_FINALIZER,
+    ARGOCD_APPLICATION_KIND,
+    ARGOCD_NAMESPACE,
+    HELM_PATH_INDEX_PLACEHOLDER,
+)
 
+
+def replace_helm_path_indices(parameter_path: str, indices: list[int],) -> str:
+
+    resolved_path = parameter_path
+
+    for index in indices:
+        resolved_path = resolved_path.replace(HELM_PATH_INDEX_PLACEHOLDER, f"[{index}]", 1)
+
+    return resolved_path
 
 def create_argocd_applications(settings, kubernetes_provider, domain_application_namespaces) -> dict[str, k8s.apiextensions.CustomResource]:
 
@@ -15,7 +34,8 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
 
         for domain_application, application_config in settings.domain_applications(domain_name).items():
 
-            application_hostname = f"{application_config['host_prefix']}.{domain_name}"
+            default_host_prefix = application_config["default_host_prefix"]
+            application_hostname = f"{default_host_prefix}.{domain_name}"
             application_tls_secret_name = f"{settings.domain_to_slug(application_hostname)}-tls"
 
             ingress = {
@@ -32,6 +52,7 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                 ],
             }
 
+            helm_parameter_paths = application_config.get("helm_parameter_paths", {})
             helm_parameters = []
 
             database_config = application_config.get("database", {})
@@ -46,54 +67,65 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                     )
                 )
 
-                helm_parameters.extend(
-                    [
-                        {
-                            "name": (
-                                f"{domain_application}.postgresql.name"
-                            ),
-                            "value": database_identifier,
-                        },
-                        {
-                            "name": (
-                                f"{domain_application}.postgresql.user"
-                            ),
-                            "value": database_identifier,
-                        },
-                    ]
-                )
-
-            for host_index, host in enumerate(ingress["hosts"]):
-                helm_parameters.append(
-                    {
-                        "name": (
-                            f"server.ingress.hosts[{host_index}]"
-                        ),
-                        "value": host,
-                    }
-                )
-
-            for tls_index, tls in enumerate(ingress["tls"]):
-                helm_parameters.append(
-                    {
-                        "name": (
-                            f"server.ingress.tls[{tls_index}]"
-                            ".secretName"
-                        ),
-                        "value": tls["secret_name"],
-                    }
-                )
-
-                for host_index, host in enumerate(tls["hosts"]):
+                if "database_name" in helm_parameter_paths:
                     helm_parameters.append(
                         {
-                            "name": (
-                                f"server.ingress.tls[{tls_index}]"
-                                f".hosts[{host_index}]"
-                            ),
+                            "name": helm_parameter_paths["database_name"],
+                            "value": database_identifier,
+                        }
+                    )
+
+                if "database_user" in helm_parameter_paths:
+                    helm_parameters.append(
+                        {
+                            "name": helm_parameter_paths["database_user"],
+                            "value": database_identifier,
+                        }
+                    )
+
+                if database_config.get("connection_url_secret", False):
+
+                    database_url_secret_name = (
+                        get_application_database_url_secret_name(
+                            settings=settings,
+                            application=domain_application,
+                        )
+                    )
+
+                    helm_parameters.append(
+                        {
+                            "name": helm_parameter_paths["database_connection_url_secret"],
+                            "value": database_url_secret_name,
+                        }
+                    )
+
+            if "ingress_host" in helm_parameter_paths:
+
+                for host_index, host in enumerate(ingress["hosts"]):
+                    helm_parameters.append(
+                        {
+                            "name": replace_helm_path_indices(helm_parameter_paths["ingress_host"], [host_index]),
                             "value": host,
                         }
                     )
+
+            if "ingress_tls_secret" in helm_parameter_paths:
+
+                for tls_index, tls in enumerate(ingress["tls"]):
+                    helm_parameters.append(
+                        {
+                            "name": replace_helm_path_indices(helm_parameter_paths["ingress_tls_secret"], [tls_index]),
+                            "value": tls["secret_name"],
+                        }
+                    )
+
+                    for host_index, host in enumerate(tls["hosts"]):
+                        helm_parameters.append(
+                            {
+                                "name": replace_helm_path_indices(helm_parameter_paths["ingress_tls_host"], [tls_index, host_index]),
+                                "value": host,
+                            }
+                        )
 
             application_chart = application_config["chart"]
 

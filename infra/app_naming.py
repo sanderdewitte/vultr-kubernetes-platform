@@ -1,8 +1,12 @@
+from constants import URL_IDENTIFIER
+
+
 def get_domain_application_namespace(settings, application: str, domain_name: str) -> str:
 
+    application_slug = settings.identifier_to_slug(application)
     domain_slug = settings.domain_to_slug(domain_name)
 
-    return f"{application}-{domain_slug}"
+    return f"{application_slug}-{domain_slug}"
 
 
 def get_domain_application_resource_name(settings, application: str, domain_name: str) -> str:
@@ -21,17 +25,24 @@ def get_domain_application_database_identifier(settings, application: str, domai
     return f"{application}_{domain_identifier}"
 
 
-def get_domain_application_database_secret_name(settings, application: str, domain_name: str, suffix: str | None = None) -> str:
+def get_domain_application_database_secret_name(settings, application: str, domain_name: str) -> str:
 
-    database_identifier = get_domain_application_database_identifier(
-        settings=settings,
-        application=application,
-        domain_name=domain_name,
+    application_database_identifier = (
+        get_domain_application_database_identifier(
+            settings=settings,
+            application=application,
+            domain_name=domain_name,
+        )
     )
 
-    secret_name = f"{settings.identifier_to_slug(database_identifier)}-postgresql"
+    application_database_identifier_slug = settings.identifier_to_slug(application_database_identifier)
 
-    if suffix:
-        secret_name = f"{secret_name}-{settings.identifier_to_slug(suffix)}"
+    return f"{application_database_identifier_slug}-postgresql"
 
-    return secret_name
+
+def get_application_database_url_secret_name(settings, application: str) -> str:
+
+    application_slug = settings.identifier_to_slug(application)
+    database_resource_suffix = f"postgresql-{URL_IDENTIFIER}"
+
+    return f"{application_slug}-{database_resource_suffix}"
