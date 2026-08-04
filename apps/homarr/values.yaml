@@ -1,0 +1,29 @@
+env:
+  TZ: Europe/Amsterdam
+
+fullnameOverride: homarr
+
+database:
+  type: postgresql
+
+envSecrets:
+  dbCredentials:
+    existingSecret: homarr-postgresql-url
+    dbUrlKey: url
+  dbEncryption:
+    existingSecret: homarr-secret-encryption-key
+    key: secret-encryption-key
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

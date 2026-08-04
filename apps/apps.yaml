@@ -15,3 +15,20 @@ authentik:
     ingress_host: server.ingress.hosts[?]
     ingress_tls_secret: server.ingress.tls[?].secretName
     ingress_tls_host: server.ingress.tls[?].hosts[?]
+
+homarr:
+  namespace: true
+  database:
+    enabled: true
+    connection_url_secret: true
+  chart:
+    repository_url: https://homarr-labs.github.io/charts/
+    version: 8.25.0
+  default_host_prefix: www
+  secret_requirements:
+    - postgresql_password
+    - secret_encryption_key
+  helm_parameter_paths:
+    ingress_host: ingress.hosts[?].host
+    ingress_tls_secret: ingress.tls[?].secretName
+    ingress_tls_host: ingress.tls[?].hosts[?]
