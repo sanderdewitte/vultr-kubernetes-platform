@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import pulumi
 import pulumi_kubernetes as k8s
 
@@ -92,7 +94,8 @@ def create_domain_application_database_url_secret(settings, kubernetes_provider,
 
     database_url = pulumi.Output.secret(database_password).apply(
         lambda password: (
-            f"postgresql://{database_identifier}:{password}"
+            f"postgresql://{database_identifier}:"
+            f"{quote(password, safe='')}"
             f"@{POSTGRESQL_CLUSTER_NAME}-rw."
             f"{PLATFORM_DATABASE_NAMESPACE}.svc.cluster.local:"
             f"{postgresql_port}/"
