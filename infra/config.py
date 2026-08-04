@@ -230,7 +230,7 @@ class Settings:
         self.validate_allowed_keys("application", application_config, ALLOWED_APPLICATION_KEYS, application_name)
 
         default_host_prefix = application_config.get("default_host_prefix")
-        
+
         if not isinstance(default_host_prefix, str) or not default_host_prefix.strip():
 
             raise ConfigurationError(
@@ -319,7 +319,7 @@ class Settings:
             )
 
         if connection_url_secret_enabled:
-        
+
             if not database_enabled:
                 raise ConfigurationError(
                     message="database.connection_url_secret is enabled while database.enabled is disabled.",
@@ -327,7 +327,7 @@ class Settings:
                     name=application_name,
                     hint="Set database.enabled to true or disable database.connection_url_secret.",
                 )
-        
+
             if not application_config.get("namespace", False):
                 raise ConfigurationError(
                     message="database.connection_url_secret is enabled, but namespace is not enabled.",
