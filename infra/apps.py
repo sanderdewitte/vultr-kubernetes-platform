@@ -2,7 +2,6 @@ import pulumi
 import pulumi_kubernetes as k8s
 
 from app_naming import (
-    get_application_database_url_secret_name,
     get_domain_application_database_identifier,
     get_domain_application_namespace,
 )
@@ -80,22 +79,6 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                         {
                             "name": helm_parameter_paths["database_user"],
                             "value": database_identifier,
-                        }
-                    )
-
-                if database_config.get("connection_url_secret", False):
-
-                    database_url_secret_name = (
-                        get_application_database_url_secret_name(
-                            settings=settings,
-                            application=domain_application,
-                        )
-                    )
-
-                    helm_parameters.append(
-                        {
-                            "name": helm_parameter_paths["database_connection_url_secret"],
-                            "value": database_url_secret_name,
                         }
                     )
 

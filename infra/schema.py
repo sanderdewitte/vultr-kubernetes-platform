@@ -20,7 +20,6 @@ ALLOWED_CHART_KEYS = {
 ALLOWED_HELM_PARAMETER_PATH_KEYS = {
     "database_name",
     "database_user",
-    "database_connection_url_secret",
     "ingress_host",
     "ingress_tls_secret",
     "ingress_tls_host",
@@ -29,7 +28,6 @@ ALLOWED_HELM_PARAMETER_PATH_KEYS = {
 EXPECTED_HELM_PARAMETER_PATH_INDEX_COUNTS = {
     "database_name": 0,
     "database_user": 0,
-    "database_connection_url_secret": 0,
     "ingress_host": 1,
     "ingress_tls_secret": 1,
     "ingress_tls_host": 2,
@@ -39,10 +37,6 @@ DATABASE_IDENTIFIER_HELM_PARAMETER_PATH_KEYS = {
     "database_name",
     "database_user",
 }
-
-DATABASE_CONNECTION_URL_HELM_PARAMETER_PATH_KEY = (
-    "database_connection_url_secret"
-)
 
 INGRESS_HELM_PARAMETER_PATH_KEYS = {
     "ingress_host",

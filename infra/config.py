@@ -18,7 +18,6 @@ from schema import (
     ALLOWED_HELM_PARAMETER_PATH_KEYS,
     EXPECTED_HELM_PARAMETER_PATH_INDEX_COUNTS,
     DATABASE_IDENTIFIER_HELM_PARAMETER_PATH_KEYS,
-    DATABASE_CONNECTION_URL_HELM_PARAMETER_PATH_KEY,
     INGRESS_HELM_PARAMETER_PATH_KEYS,
 )
 
@@ -391,27 +390,6 @@ class Settings:
                     name=application_name,
                     hint=f"Set database.enabled to true or remove helm_parameter_paths.{parameter_name}.",
                 )
-
-        database_connection_url_secret_path_configured = "database_connection_url_secret" in helm_parameter_paths
-
-        if connection_url_secret_enabled:
-
-            if not database_connection_url_secret_path_configured:
-                raise ConfigurationError(
-                    message="database.connection_url_secret is enabled, but its Helm parameter path is not configured.",
-                    scope=ConfigurationScope.APPLICATION,
-                    name=application_name,
-                    hint="Add helm_parameter_paths.database_connection_url_secret.",
-                )
-
-        elif database_connection_url_secret_path_configured:
-
-            raise ConfigurationError(
-                message="helm_parameter_paths.database_connection_url_secret is configured while database.connection_url_secret is disabled.",
-                scope=ConfigurationScope.APPLICATION,
-                name=application_name,
-                hint="Enable database.connection_url_secret or remove helm_parameter_paths.database_connection_url_secret.",
-            )
 
         configured_ingress_parameters = INGRESS_HELM_PARAMETER_PATH_KEYS & set(helm_parameter_paths)
 
