@@ -19,6 +19,10 @@ ingress:
   ingressClassName: traefik
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-production
+  hosts:
+    - paths:
+        - path: /
+          pathType: ImplementationSpecific
 
 resources:
   requests:
