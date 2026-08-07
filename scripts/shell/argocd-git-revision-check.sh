@@ -28,7 +28,10 @@ readonly YELLOW=$'\033[33m'
 readonly RESET=$'\033[0m'
 
 readonly APP_WIDTH=32
-readonly FIELD_WIDTH=10
+readonly HEALTH_WIDTH=11
+readonly SYNC_WIDTH=10
+readonly REVISION_WIDTH=10
+readonly RESULT_WIDTH=10
 
 init_colors() {
   if [[ -t 1 ]]; then
@@ -150,22 +153,24 @@ get_sync_status() {
 }
 
 print_header() {
-  printf 'Repository : %s\n' "$(get_repository_name)"
-  printf 'Branch     : %s\n' "$(get_local_branch)"
-  printf 'Revision   : %s\n' "$(get_short_revision "$LOCAL_REVISION")"
-  printf '\n'
-  printf '%-32s %-10s %-10s %-10s %s\n' \
-    "APPLICATION" \
-    "HEALTH" \
-    "SYNC" \
-    "GIT REV" \
-    "HEAD MATCH"
-  printf '%-32s %-10s %-10s %-10s %s\n' \
-    "--------------------------------" \
-    "----------" \
-    "----------" \
-    "----------" \
-    "----------"
+    printf 'Repository : %s\n' "$(get_repository_name)"
+    printf 'Branch     : %s\n' "$(get_local_branch)"
+    printf 'Revision   : %s\n' "$(get_short_revision "$LOCAL_REVISION")"
+    printf '\n'
+
+    printf '%-*s %-*s %-*s %-*s %s\n' \
+        "$APP_WIDTH" "APPLICATION" \
+        "$HEALTH_WIDTH" "HEALTH" \
+        "$SYNC_WIDTH" "SYNC" \
+        "$REVISION_WIDTH" "GIT REV" \
+        "HEAD MATCH"
+
+    printf '%-*s %-*s %-*s %-*s %s\n' \
+        "$APP_WIDTH" "--------------------------------" \
+        "$HEALTH_WIDTH" "-----------" \
+        "$SYNC_WIDTH" "----------" \
+        "$REVISION_WIDTH" "----------" \
+        "----------"
 }
 
 print_field() {
@@ -237,12 +242,12 @@ check_application() {
     ((APPLICATIONS_DIFFER++))
   fi
   printf '%-*s ' "$APP_WIDTH" "$app"
-  print_field "$health" "$FIELD_WIDTH" health
+  print_field "$health" "$HEALTH_WIDTH" health
   printf ' '
-  print_field "$sync" "$FIELD_WIDTH" sync
+  print_field "$sync" "$SYNC_WIDTH" sync
   printf ' '
-  printf '%-*s ' "$FIELD_WIDTH" "$display_revision"
-  print_field "$result" "$FIELD_WIDTH" result
+  printf '%-*s ' "$REVISION_WIDTH" "$display_revision"
+  print_field "$result" "$RESULT_WIDTH" result
   printf '\n'
 }
 
