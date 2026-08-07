@@ -564,6 +564,16 @@ class Settings:
 
         if "oidc" in authentication_config:
 
+            oidc_display_name = oidc_config.get("display_name")
+
+            if oidc_display_name is not None and (not isinstance(oidc_display_name, str) or not oidc_display_name.strip()):
+                raise ConfigurationError(
+                    message="authentication.oidc.display_name is not a non-empty string.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint="Set authentication.oidc.display_name to a non-empty display name or omit it to use the identity provider name instead.",
+                )
+
             oidc_secret_requirements = oidc_config.get("secret_requirements", [])
 
             if not isinstance(oidc_secret_requirements, list):

@@ -94,7 +94,7 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                 oidc_provider_slug = settings.identifier_to_slug(domain_application)
                 oidc_issuer = f"https://{identity_provider_hostname}/application/o/{oidc_provider_slug}/"
                 oidc_logout_redirect_url = f"{oidc_issuer}end-session/"
-                oidc_client_name = settings.identifier_to_display_name(identity_provider)
+                oidc_client_name = oidc_config.get("display_name", settings.identifier_to_display_name(identity_provider))
 
                 oidc_helm_parameter_values = {
                     "providers": "oidc",

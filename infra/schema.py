@@ -31,6 +31,7 @@ ALLOWED_AUTH_KEYS = {
 }
 
 ALLOWED_AUTH_OIDC_KEYS = {
+    "display_name",
     "secret_requirements",
     "helm_parameter_paths",
 }

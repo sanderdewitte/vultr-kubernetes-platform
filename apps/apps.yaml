@@ -23,6 +23,7 @@ homarr:
     connection_url_secret: true
   authentication:
     oidc:
+      display_name: SSO
       secret_requirements:
         - client_id
         - client_secret
