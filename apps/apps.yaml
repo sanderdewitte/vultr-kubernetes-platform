@@ -21,6 +21,18 @@ homarr:
   database:
     enabled: true
     connection_url_secret: true
+  authentication:
+    oidc:
+      secret_requirements:
+        - client_id
+        - client_secret
+      helm_parameter_paths:
+        providers: env.AUTH_PROVIDERS
+        issuer: env.AUTH_OIDC_ISSUER
+        client_name: env.AUTH_OIDC_CLIENT_NAME
+        scope: env.AUTH_OIDC_SCOPE_OVERWRITE
+        groups_attribute: env.AUTH_OIDC_GROUPS_ATTRIBUTE
+        logout_redirect_url: env.AUTH_LOGOUT_REDIRECT_URL
   chart:
     repository_url: https://homarr-labs.github.io/charts/
     version: 8.25.0

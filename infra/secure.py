@@ -136,35 +136,30 @@ def create_domain_application_namespace(kubernetes_provider, namespace_name: str
     )
 
 
-def create_domain_application_secret(settings, kubernetes_provider, domain_application: str, domain_name: str, namespace_name: str, secret_requirement: str, namespace) -> tuple[str, k8s.core.v1.Secret]:
+def create_domain_application_secret(settings, kubernetes_provider, domain_application: str, domain_name: str, namespace_name: str, secret_name: str, secret_data: dict[str, str], namespace) -> tuple[str, k8s.core.v1.Secret]:
 
-    secret_key = settings.identifier_to_slug(secret_requirement)
+    secret_name_slug = settings.identifier_to_slug(secret_name)
 
-    secret_name = (
+    kubernetes_secret_name = (
         f"{domain_application}-"
-        f"{settings.identifier_to_slug(secret_requirement)}"
+        f"{secret_name_slug}"
     )
 
     resource_name = (
         f"{domain_application}-"
         f"{settings.domain_to_slug(domain_name)}-"
-        f"{settings.identifier_to_slug(secret_requirement)}"
+        f"{secret_name_slug}"
     )
 
     secret = k8s.core.v1.Secret(
         resource_name,
         metadata={
-            "name": secret_name,
+            "name": kubernetes_secret_name,
             "namespace": namespace_name,
         },
         string_data={
-            secret_key: pulumi.Output.secret(
-                settings.get_domain_secret(
-                    application=domain_application,
-                    domain_name=domain_name,
-                    secret_name=secret_requirement,
-                )
-            ),
+            secret_key: pulumi.Output.secret(secret_value)
+            for secret_key, secret_value in secret_data.items()
         },
         type="Opaque",
         opts=pulumi.ResourceOptions(
@@ -237,6 +232,7 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
     domain_application_secrets = {}
     domain_application_database_secrets = {}
     domain_application_database_url_secrets = {}
+    domain_application_oidc_secrets = {}
 
     for domain in settings.domains:
 
@@ -290,6 +286,38 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
 
                     domain_application_database_url_secrets[resource_name] = database_url_secret
 
+                authentication_config = application_config.get("authentication", {})
+                oidc_config = authentication_config.get("oidc", {})
+
+                if oidc_config.get("identity_provider"):
+
+                    oidc_secret_requirements = oidc_config.get("secret_requirements", [])
+
+                    oidc_secret_data = {
+                        settings.identifier_to_slug(secret_requirement):
+                            settings.get_domain_secret(
+                                application=domain_application,
+                                domain_name=domain_name,
+                                secret_name=secret_requirement,
+                            )
+                        for secret_requirement in oidc_secret_requirements
+                    }
+
+                    resource_name, oidc_secret = (
+                        create_domain_application_secret(
+                            settings=settings,
+                            kubernetes_provider=kubernetes_provider,
+                            domain_application=domain_application,
+                            domain_name=domain_name,
+                            namespace_name=namespace_name,
+                            secret_name="oidc_credentials",
+                            secret_data=oidc_secret_data,
+                            namespace=namespace,
+                        )
+                    )
+
+                    domain_application_oidc_secrets[resource_name] = oidc_secret
+
                 for secret_requirement in application_config.get("secret_requirements", []):
 
                     resource_name, secret = create_domain_application_secret(
@@ -298,7 +326,15 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
                         domain_application=domain_application,
                         domain_name=domain_name,
                         namespace_name=namespace_name,
-                        secret_requirement=secret_requirement,
+                        secret_name=secret_requirement,
+                        secret_data={
+                            settings.identifier_to_slug(secret_requirement):
+                                settings.get_domain_secret(
+                                    application=domain_application,
+                                    domain_name=domain_name,
+                                    secret_name=secret_requirement,
+                                ),
+                        },
                         namespace=namespace,
                     )
 
@@ -312,4 +348,5 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
         "domain_application_secrets": domain_application_secrets,
         "domain_application_database_secrets": domain_application_database_secrets,
         "domain_application_database_url_secrets": domain_application_database_url_secrets,
+        "domain_application_oidc_secrets": domain_application_oidc_secrets,
     }

@@ -1,6 +1,7 @@
 import os
 import yaml
 import re
+from copy import deepcopy
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -12,13 +13,20 @@ from errors import (
     ConfigurationScope,
 )
 from schema import (
+    ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_KEYS,
+    ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_AUTH_KEYS,
+    ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_AUTH_OIDC_KEYS,
     ALLOWED_APPLICATION_KEYS,
     ALLOWED_DATABASE_KEYS,
+    ALLOWED_AUTH_KEYS,
+    ALLOWED_AUTH_OIDC_KEYS,
     ALLOWED_CHART_KEYS,
     ALLOWED_HELM_PARAMETER_PATH_KEYS,
     EXPECTED_HELM_PARAMETER_PATH_INDEX_COUNTS,
     DATABASE_IDENTIFIER_HELM_PARAMETER_PATH_KEYS,
     INGRESS_HELM_PARAMETER_PATH_KEYS,
+    OIDC_HELM_PARAMETER_PATH_KEYS,
+    REQUIRED_OIDC_SECRET_REQUIREMENTS,
 )
 
 INFRA_DIR = Path(__file__).parent
@@ -69,6 +77,11 @@ class Settings:
         return identifier.lower().replace("_", "-")
 
     @staticmethod
+    def identifier_to_display_name(identifier: str) -> str:
+
+        return identifier.replace("_", " ").title()
+
+    @staticmethod
     def domain_to_slug(domain_name: str) -> str:
 
         return domain_name.lower().replace(".", "-")
@@ -96,9 +109,48 @@ class Settings:
 
     def domain_applications(self, domain_name: str) -> dict:
 
-        domain = next(d for d in self.domains if d["name"] == domain_name)
+        domain = next(domain for domain in self.domains if domain["name"] == domain_name)
 
-        return {application: self.application_catalog[application] for application in domain.get("applications", [])}
+        application_configs = {}
+
+        for domain_application_entry in domain.get("applications", []):
+
+            application_name, application_domain_deployment_config = self.normalize_domain_application_entry(domain_application_entry)
+
+            application_config = deepcopy(self.application_catalog[application_name])
+
+            self.merge_configuration(configuration=application_config, configuration_update=application_domain_deployment_config)
+
+            application_config["host_prefix"] = application_domain_deployment_config.get("host_prefix", application_config["default_host_prefix"])
+
+            application_configs[application_name] = application_config
+
+        return application_configs
+
+    @staticmethod
+    def normalize_domain_application_entry(domain_application_entry) -> tuple[str, dict]:
+
+        if isinstance(domain_application_entry, str):
+            return domain_application_entry, {}
+
+        application_name, application_domain_deployment_config = next(iter(domain_application_entry.items()))
+
+        if application_domain_deployment_config is None:
+            application_domain_deployment_config = {}
+
+        return application_name, application_domain_deployment_config
+
+    @staticmethod
+    def merge_configuration(configuration: dict, configuration_update: dict) -> None:
+
+        for key, update_value in configuration_update.items():
+
+            configured_value = configuration.get(key)
+
+            if isinstance(configured_value, dict) and isinstance(update_value, dict):
+                Settings.merge_configuration(configuration=configured_value, configuration_update=update_value)
+            else:
+                configuration[key] = deepcopy(update_value)
 
     def validate_prerequisites(self) -> None:
 
@@ -171,9 +223,9 @@ class Settings:
                 hint="Set wildcard to true or false.",
             )
 
-        domain_applications = domain.get("applications", [])
+        domain_application_entries = domain.get("applications", [])
 
-        if not isinstance(domain_applications, list):
+        if not isinstance(domain_application_entries, list):
             raise ConfigurationError(
                 message="applications is not a list.",
                 scope=ConfigurationScope.DOMAIN,
@@ -181,21 +233,171 @@ class Settings:
                 hint="Define applications as a YAML list or omit it when no applications are required.",
             )
 
-        for domain_application in domain_applications:
+        configured_application_names = set()
+        configured_oidc_providers = set()
 
-            if domain_application not in self.application_catalog:
+        for domain_application_entry in domain_application_entries:
+
+            self.validate_domain_application_entry(domain_application_entry=domain_application_entry, domain_name=domain_name)
+
+            application_name, application_domain_deployment_config = self.normalize_domain_application_entry(domain_application_entry)
+
+            if application_name in configured_application_names:
                 raise ConfigurationError(
-                    message=f"Application '{domain_application}' is not present in the application catalog.",
+                    message=f"Application '{application_name}' is configured more than once.",
                     scope=ConfigurationScope.DOMAIN,
                     name=domain_name,
-                    hint=f"Add '{domain_application}' to {APPLICATION_CATALOG_FILE.name} or remove it from this domain's applications list.",
+                    hint="Configure each application only once per domain.",
                 )
 
-            application_config = self.application_catalog[domain_application]
+            configured_application_names.add(application_name)
 
-            self.validate_application_config(application_name=domain_application, application_config=application_config, domain_name=domain_name)
+            if application_name not in self.application_catalog:
+                raise ConfigurationError(
+                    message=f"Application '{application_name}' is not present in the application catalog.",
+                    scope=ConfigurationScope.DOMAIN,
+                    name=domain_name,
+                    hint=f"Add '{application_name}' to {APPLICATION_CATALOG_FILE.name} or remove it from this domain's applications list.",
+                )
+
+            application_config = self.application_catalog[application_name]
+
+            self.validate_application_config(application_name=application_name, application_config=application_config, domain_name=domain_name)
+
+            self.validate_application_domain_deployment_config(application_name=application_name, application_config=application_config, application_domain_deployment_config=application_domain_deployment_config, domain_name=domain_name)
+
+            authentication_config = application_domain_deployment_config.get("authentication", {})
+            oidc_config = authentication_config.get("oidc", {})
+
+            if oidc_config:
+                configured_oidc_providers.add(oidc_config["identity_provider"])
+
+        missing_oidc_providers = configured_oidc_providers - configured_application_names
+        if missing_oidc_providers:
+            raise ConfigurationError(
+                message=f"OIDC provider application(s) are not deployed on this domain: {', '.join(sorted(missing_oidc_providers))}.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Add the missing OIDC provider application(s) to this domain's applications list.",
+            )
 
         self.validate_domain_dns_config(domain=domain, domain_name=domain_name)
+
+    def validate_domain_application_entry(self, domain_application_entry, domain_name: str) -> None:
+
+        if isinstance(domain_application_entry, str):
+
+            if not domain_application_entry:
+                raise ConfigurationError(
+                    message="An application entry has no name.",
+                    scope=ConfigurationScope.DOMAIN,
+                    name=domain_name,
+                    hint="Use a non-empty application identifier.",
+                )
+
+            return
+
+        if not isinstance(domain_application_entry, dict):
+            raise ConfigurationError(
+                message="An application entry is neither a string nor a dictionary.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Define an application as a name or as a single-key mapping containing domain deployment configuration.",
+            )
+
+        if len(domain_application_entry) != 1:
+            raise ConfigurationError(
+                message="An application entry does not contain exactly one application.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Define each application as a single-key mapping.",
+            )
+
+        application_name, application_domain_deployment_config = next(iter(domain_application_entry.items()))
+
+        if not isinstance(application_name, str) or not application_name:
+            raise ConfigurationError(
+                message="An application entry has an invalid name.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Use a non-empty application identifier as the mapping key.",
+            )
+
+        if application_domain_deployment_config is not None and not isinstance(application_domain_deployment_config, dict):
+            raise ConfigurationError(
+                message=f"Domain deployment configuration for application '{application_name}' is not a dictionary.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Define the application domain deployment configuration as a YAML mapping.",
+            )
+
+    def validate_application_domain_deployment_config(self, application_name: str, application_config: dict, application_domain_deployment_config: dict, domain_name: str) -> None:
+
+        self.validate_allowed_keys("application domain deployment", application_domain_deployment_config, ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_KEYS, application_name)
+
+        host_prefix = application_domain_deployment_config.get( "host_prefix")
+
+        if host_prefix is not None and (not isinstance(host_prefix, str) or not host_prefix.strip()):
+            raise ConfigurationError(
+                message="host_prefix is not a non-empty string.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Set host_prefix to a non-empty hostname prefix.",
+            )
+
+        authentication = application_domain_deployment_config.get("authentication", {})
+
+        if not isinstance(authentication, dict):
+            raise ConfigurationError(
+                message="authentication is not a dictionary.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Define authentication as a YAML mapping.",
+            )
+
+        self.validate_allowed_keys("authentication", authentication, ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_AUTH_KEYS, application_name)
+
+        oidc = authentication.get("oidc", {})
+
+        if not isinstance(oidc, dict):
+            raise ConfigurationError(
+                message="authentication.oidc is not a dictionary.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Define authentication.oidc as a YAML mapping.",
+            )
+
+        self.validate_allowed_keys("authentication.oidc", oidc, ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_AUTH_OIDC_KEYS, application_name)
+
+        if "oidc" in authentication:
+
+            application_auth_config = application_config.get("authentication", {})
+
+            if "oidc" not in application_auth_config:
+                raise ConfigurationError(
+                    message="OIDC authentication is enabled for this deployment, but the application catalog does not define OIDC support.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint="Add authentication.oidc to the application catalog entry or remove authentication.oidc from the domain deployment configuration.",
+                )
+
+            provider = oidc.get("identity_provider")
+
+            if not isinstance(provider, str) or not provider.strip():
+                raise ConfigurationError(
+                    message="authentication.oidc.identity_provider is not a non-empty string.",
+                    scope=ConfigurationScope.DOMAIN,
+                    name=domain_name,
+                    hint="Set authentication.oidc.identity_provider to a non-empty application identifier.",
+                )
+
+            if provider not in self.application_catalog:
+                raise ConfigurationError(
+                    message=f"OIDC provider application '{provider}' is not present in the application catalog.",
+                    scope=ConfigurationScope.DOMAIN,
+                    name=domain_name,
+                    hint=f"Add '{provider}' to {APPLICATION_CATALOG_FILE.name} or configure a supported OIDC provider application.",
+                )
 
     def validate_allowed_keys(self, section_name: str, configuration: dict, allowed_keys: set[str], application_name: str) -> None:
 
@@ -334,6 +536,126 @@ class Settings:
                     scope=ConfigurationScope.APPLICATION,
                     name=application_name,
                     hint="Set namespace to true or disable database.connection_url_secret.",
+                )
+
+        authentication_config = application_config.get("authentication", {})
+
+        if not isinstance(authentication_config, dict):
+            raise ConfigurationError(
+                message="authentication is not a dictionary.",
+                scope=ConfigurationScope.APPLICATION,
+                name=application_name,
+                hint="Define authentication as a YAML mapping or omit it when no authentication integration is supported.",
+            )
+
+        self.validate_allowed_keys("authentication", authentication_config, ALLOWED_AUTH_KEYS, application_name)
+
+        oidc_config = authentication_config.get("oidc", {})
+
+        if not isinstance(oidc_config, dict):
+            raise ConfigurationError(
+                message="authentication.oidc is not a dictionary.",
+                scope=ConfigurationScope.APPLICATION,
+                name=application_name,
+                hint="Define authentication.oidc as a YAML mapping.",
+            )
+
+        self.validate_allowed_keys("authentication.oidc", oidc_config, ALLOWED_AUTH_OIDC_KEYS, application_name)
+
+        if "oidc" in authentication_config:
+
+            oidc_secret_requirements = oidc_config.get("secret_requirements", [])
+
+            if not isinstance(oidc_secret_requirements, list):
+                raise ConfigurationError(
+                    message="authentication.oidc.secret_requirements is not a list.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint="Define authentication.oidc.secret_requirements as a YAML list.",
+                )
+
+            if len(oidc_secret_requirements) != len(set(oidc_secret_requirements)):
+                raise ConfigurationError(
+                    message="authentication.oidc.secret_requirements contains duplicates.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint="List each OIDC secret requirement only once.",
+                )
+
+            for secret_name in oidc_secret_requirements:
+
+                if not isinstance(secret_name, str) or not secret_name.strip():
+                    raise ConfigurationError(
+                        message="An OIDC secret requirement is not a non-empty string.",
+                        scope=ConfigurationScope.APPLICATION,
+                        name=application_name,
+                        hint="Use a non-empty string for every entry in authentication.oidc.secret_requirements.",
+                    )
+
+            configured_oidc_secret_requirements = set(oidc_secret_requirements)
+
+            if configured_oidc_secret_requirements != REQUIRED_OIDC_SECRET_REQUIREMENTS:
+
+                missing_secret_requirements = REQUIRED_OIDC_SECRET_REQUIREMENTS - configured_oidc_secret_requirements
+                additional_secret_requirements = configured_oidc_secret_requirements - REQUIRED_OIDC_SECRET_REQUIREMENTS
+
+                hints = []
+
+                if missing_secret_requirements:
+                    hints.append(f"Add the following secret requirement(s): {', '.join(sorted(missing_secret_requirements))}.")
+
+                if additional_secret_requirements:
+                    hints.append(f"Remove the following unsupported secret requirement(s): {', '.join(sorted(additional_secret_requirements))}.")
+
+                raise ConfigurationError(
+                    message="authentication.oidc.secret_requirements is invalid.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint=" ".join(hints),
+                )
+
+            oidc_helm_parameter_paths = oidc_config.get("helm_parameter_paths", {})
+
+            if not isinstance(oidc_helm_parameter_paths, dict):
+                raise ConfigurationError(
+                    message="authentication.oidc.helm_parameter_paths is not a dictionary.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint="Define authentication.oidc.helm_parameter_paths as a YAML mapping.",
+                )
+
+            self.validate_allowed_keys("authentication.oidc.helm_parameter_paths", oidc_helm_parameter_paths, OIDC_HELM_PARAMETER_PATH_KEYS, application_name)
+
+            for parameter_name, parameter_path in oidc_helm_parameter_paths.items():
+
+                if not isinstance(parameter_path, str) or not parameter_path.strip():
+                    raise ConfigurationError(
+                        message=f"authentication.oidc.helm_parameter_paths.{parameter_name} is not a non-empty string.",
+                        scope=ConfigurationScope.APPLICATION,
+                        name=application_name,
+                        hint="Set the parameter path to the corresponding non-empty Helm values path.",
+                    )
+
+                expected_index_count = EXPECTED_HELM_PARAMETER_PATH_INDEX_COUNTS[parameter_name]
+                actual_index_count = parameter_path.count(HELM_PATH_INDEX_PLACEHOLDER)
+
+                if actual_index_count != expected_index_count:
+                    raise ConfigurationError(
+                        message=f"authentication.oidc.helm_parameter_paths.{parameter_name} contains {actual_index_count} '{HELM_PATH_INDEX_PLACEHOLDER}' index placeholder(s).",
+                        scope=ConfigurationScope.APPLICATION,
+                        name=application_name,
+                        hint=f"Use exactly {expected_index_count} '{HELM_PATH_INDEX_PLACEHOLDER}' index placeholder(s) in this parameter path.",
+                    )
+
+            configured_oidc_helm_parameters = set(oidc_helm_parameter_paths)
+
+            if configured_oidc_helm_parameters != OIDC_HELM_PARAMETER_PATH_KEYS:
+                missing_parameters = OIDC_HELM_PARAMETER_PATH_KEYS - configured_oidc_helm_parameters
+                raise ConfigurationError(
+                    message="OIDC Helm parameter paths are incomplete.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint=f"Configure the following missing parameter path(s): {', '.join(sorted(missing_parameters))}.",
                 )
 
         chart_config = application_config["chart"]

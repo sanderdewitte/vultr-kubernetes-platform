@@ -13,6 +13,10 @@ envSecrets:
   dbEncryption:
     existingSecret: homarr-secret-encryption-key
     key: secret-encryption-key
+  authOidcCredentials:
+    existingSecret: homarr-oidc-credentials
+    oidcClientId: client-id
+    oidcClientSecret: client-secret
 
 ingress:
   enabled: true

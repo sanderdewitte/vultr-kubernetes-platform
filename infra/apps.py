@@ -30,22 +30,22 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
     for domain in settings.domains:
 
         domain_name = domain["name"]
+        domain_application_configs = settings.domain_applications(domain_name)
 
-        for domain_application, application_config in settings.domain_applications(domain_name).items():
+        for domain_application, application_config in domain_application_configs.items():
 
-            default_host_prefix = application_config["default_host_prefix"]
-            application_hostname = f"{default_host_prefix}.{domain_name}"
-            application_tls_secret_name = f"{settings.domain_to_slug(application_hostname)}-tls"
+            hostname = f"{application_config['host_prefix']}.{domain_name}"
+            tls_secret_name = f"{settings.domain_to_slug(hostname)}-tls"
 
             ingress = {
                 "hosts": [
-                    application_hostname,
+                    hostname,
                 ],
                 "tls": [
                     {
-                        "secret_name": application_tls_secret_name,
+                        "secret_name": tls_secret_name,
                         "hosts": [
-                            application_hostname,
+                            hostname,
                         ],
                     },
                 ],
@@ -82,6 +82,37 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                         }
                     )
 
+            authentication_config = application_config.get("authentication", {})
+            oidc_config = authentication_config.get("oidc", {})
+            identity_provider = oidc_config.get("identity_provider")
+
+            if identity_provider:
+
+                oidc_helm_parameter_paths = oidc_config["helm_parameter_paths"]
+                identity_provider_config = domain_application_configs[identity_provider]
+                identity_provider_hostname = f"{identity_provider_config['host_prefix']}.{domain_name}"
+                oidc_provider_slug = settings.identifier_to_slug(domain_application)
+                oidc_issuer = f"https://{identity_provider_hostname}/application/o/{oidc_provider_slug}/"
+                oidc_logout_redirect_url = f"{oidc_issuer}end-session/"
+                oidc_client_name = settings.identifier_to_display_name(identity_provider)
+
+                oidc_helm_parameter_values = {
+                    "providers": "oidc",
+                    "issuer": oidc_issuer,
+                    "client_name": oidc_client_name,
+                    "scope": "openid email profile groups",
+                    "groups_attribute": "groups",
+                    "logout_redirect_url": oidc_logout_redirect_url,
+                }
+
+                for parameter_name, parameter_value in oidc_helm_parameter_values.items():
+                    helm_parameters.append(
+                        {
+                            "name": oidc_helm_parameter_paths[parameter_name],
+                            "value": parameter_value,
+                        }
+                    )
+
             if "ingress_host" in helm_parameter_paths:
 
                 for host_index, host in enumerate(ingress["hosts"]):
@@ -110,7 +141,7 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                             }
                         )
 
-            application_chart = application_config["chart"]
+            chart = application_config["chart"]
 
             namespace_name = get_domain_application_namespace(
                 settings=settings,
@@ -136,13 +167,9 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                         "project": "default",
                         "sources": [
                             {
-                                "repoURL": (
-                                    application_chart["repository_url"]
-                                ),
+                                "repoURL": chart["repository_url"],
                                 "chart": domain_application,
-                                "targetRevision": (
-                                    application_chart["version"]
-                                ),
+                                "targetRevision": chart["version"],
                                 "helm": {
                                     "valueFiles": [
                                         "$values/"

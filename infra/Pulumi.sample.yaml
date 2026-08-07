@@ -12,3 +12,7 @@ config:
       wildcard: true
       applications:
         - authentik
+        - homarr:
+            authentication:
+              oidc:
+                identity_provider: authentik
