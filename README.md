@@ -78,20 +78,20 @@ The Traefik container listens on unprivileged ports `8000` and `8443`, while Kub
 
 The platform currently includes:
 
-| Component | Purpose | Notes |
-|-----------|---------|-------|
-| Vultr Kubernetes Engine (VKE) | Managed Kubernetes cluster | Single worker node by design |
-| Pulumi | Infrastructure as Code | Manages Vultr and Kubernetes prerequisites |
-| Vultr DNS | DNS hosting | Public DNS records |
-| Argo CD | GitOps | Continuously reconciles Git with Kubernetes |
-| Traefik | Ingress controller | HTTP/HTTPS entry point |
-| Cert-Manager | Certificate management | Automates TLS certificates |
-| Cert-Manager Vultr webhook | DNS-01 validation | Integrates cert-manager with Vultr DNS |
-| Let's Encrypt | Certificate authority | Issues public TLS certificates |
-| CloudNativePG | PostgreSQL operator | Runs the shared PostgreSQL cluster |
-| Shared PostgreSQL platform database | Database service | Shared by applications that need a database |
-| Automatic PostgreSQL provisioning | Database automation | Creates application roles and databases |
-| Application-driven Argo CD generation | Deployment automation | Pulumi generates Argo CD Applications |
+| Component                             | Purpose                    | Notes                                       |
+| ------------------------------------- | -------------------------- | ------------------------------------------- |
+| Vultr Kubernetes Engine (VKE)         | Managed Kubernetes cluster | Single worker node by design                |
+| Pulumi                                | Infrastructure as Code     | Manages Vultr and Kubernetes prerequisites  |
+| Vultr DNS                             | DNS hosting                | Public DNS records                          |
+| Argo CD                               | GitOps                     | Continuously reconciles Git with Kubernetes |
+| Traefik                               | Ingress controller         | HTTP/HTTPS entry point                      |
+| Cert-Manager                          | Certificate management     | Automates TLS certificates                  |
+| Cert-Manager Vultr webhook            | DNS-01 validation          | Integrates cert-manager with Vultr DNS      |
+| Let's Encrypt                         | Certificate authority      | Issues public TLS certificates              |
+| CloudNativePG                         | PostgreSQL operator        | Runs the shared PostgreSQL cluster          |
+| Shared PostgreSQL platform database   | Database service           | Shared by applications that need a database |
+| Automatic PostgreSQL provisioning     | Database automation        | Creates application roles and databases     |
+| Application-driven Argo CD generation | Deployment automation      | Pulumi generates Argo CD Applications       |
 
 ## Multi-domain application model
 
@@ -119,11 +119,12 @@ Applications therefore become a configuration choice rather than a deployment ta
 
 Currently implemented or planned:
 
-| Application | Purpose | Suggested host prefix | Status |
-|-------------|---------|-----------------------|--------|
-| Authentik | Identity provider (SSO) | `auth` | ✅ Implemented |
-| Homarr | Homepage and application dashboard | `www` | 🔄 In progress |
-| Drupal | Website CMS | `www` | 📋 Planned |
+| Application    | Purpose                            | Suggested host prefix | Status         |
+| -------------- | ---------------------------------- | --------------------- | -------------- |
+| Authentik      | Identity provider (SSO)            | `auth`                | ✅ Implemented |
+| Homarr         | Homepage and application dashboard | `www`                 | ✅ Implemented |
+| Drupal         | Website CMS                        | `www`                 | 🔄 In progress |
+| Metrics Server | Container resource metrics for k8s | `monitor`             | 📋 Planned     |
 
 ## Repository layout
 
@@ -131,9 +132,10 @@ Currently implemented or planned:
 .
 ├── apps/
 │   ├── apps.yaml
-│   └── authentik/
+│   ├── authentik/
+│   │   └── values.yaml
+│   └── homarr/
 │       └── values.yaml
-├── docs/
 ├── infra/
 │   ├── apps.py
 │   ├── config.py
@@ -145,6 +147,7 @@ Currently implemented or planned:
 │   ├── cert-manager/
 │   ├── cloudnative-pg/
 │   └── traefik/
+├── docs/
 └── scripts/
 ```
 
@@ -168,92 +171,107 @@ Currently implemented or planned:
 
 Before following the Quick start below, ensure the following (required) tools are installed:
 
-| Tool | Requirement | Purpose |
-|------|-------------|---------|
-| Python 3.10 or newer | ✅ Required | Required to run the Pulumi program. |
-| uv | ✅ Required | Python package, virtual environment and project manager. |
-| Pulumi CLI | ✅ Required | Provisions the infrastructure and Kubernetes resources. |
-| kubectl | ✅ Required | Kubernetes command-line client. |
-| Git | ✅ Required | Version control and GitOps workflow. |
-| GitHub CLI (`gh`) | 💡 Optional | Convenient GitHub repository management. |
-| vultr-cli | 💡 Optional | Optional management of Vultr resources. |
+| Tool                 | Requirement | Purpose                                                  |
+| -------------------- | ----------- | -------------------------------------------------------- |
+| Python 3.10 or newer | ✅ Required  | Required to run the Pulumi program.                      |
+| uv                   | ✅ Required  | Python package, virtual environment and project manager. |
+| Pulumi CLI           | ✅ Required  | Provisions the infrastructure and Kubernetes resources.  |
+| kubectl              | ✅ Required  | Kubernetes command-line client.                          |
+| Git                  | ✅ Required  | Version control and GitOps workflow.                     |
+| GitHub CLI (`gh`)    | 💡 Optional | Convenient GitHub repository management.                 |
+| vultr-cli            | 💡 Optional | Optional management of Vultr resources.                  |
 
 Detailed installation instructions are available in the documentation linked above.
 
 ## Quick start
 
-1. Clone this repository.
+The following is a condensed installation sequence. See [Installation](docs/installation.md) for the complete procedure and explanations.
 
-   ```text
-   Clone this repository to your local machine.
-   ```
+1. Clone this repository and create your own GitHub repository (or fork this one).
 
-2. Create your own GitHub repository (or fork this one).
+   Push the project to your own GitHub repository. Its URL is used in the Pulumi configuration and by Argo CD.
 
-   ```text
-   Push this project to your own GitHub repository.
-   The repository URL will be used in Pulumi.prd.yaml.
-   ```
-
-3. Copy the sample Pulumi configuration:
+2. Create the Pulumi configuration and local secrets file:
 
    ```bash
    cd infra
    cp Pulumi.sample.yaml Pulumi.prd.yaml
-   ```
-
-4. Create the local secrets file:
-
-   ```bash
    cp secrets.local.env.sample secrets.local.env
    ```
 
-5. Configure the Pulumi stack and local secrets:
+   Configure `Pulumi.prd.yaml`, including `repository_url`, and set the required values in `secrets.local.env`.
 
-   ```text
-   Edit:
-   - Pulumi.prd.yaml
-   - secrets.local.env
-   Set repository_url to your own GitHub repository.
-   ```
-
-6. Deploy infrastructure:
+3. Initialize or select the Pulumi stack:
 
    ```bash
-   pulumi stack select prd
-   pulumi preview
-   pulumi up
+   pulumi stack init prd
    ```
 
-7. Retrieve and install the kubeconfig:
+   For an existing stack, use `pulumi stack select prd` instead.
+
+4. Temporarily enable bootstrap mode in `Pulumi.prd.yaml`:
+
+   ```yaml
+   vultr-kubernetes-platform:bootstrap: true
+   ```
+
+   For confirmation, set the following environment variable for the initial deployment:
+
+   ```bash
+   export VULTR_KUBERNETES_PLATFORM_BOOTSTRAP_CONFIRM=true
+   ```
+
+5. Deploy the bootstrap infrastructure:
+
+   ```bash
+   pulumi preview
+   pulumi up
+   unset VULTR_KUBERNETES_PLATFORM_BOOTSTRAP_CONFIRM
+   ```
+
+6. Retrieve and install the kubeconfig:
 
    ```bash
    pulumi stack output kubeconfig --show-secrets | base64 -d > kubeconfig.yaml
+   chmod 600 kubeconfig.yaml
    mkdir -p ~/.kube
    cp kubeconfig.yaml ~/.kube/config
    chmod 600 ~/.kube/config
    kubectl get nodes
    ```
 
-8. Commit and push the repository to GitHub:
+7. Return to the repository root and bootstrap Argo CD and the root Application:
 
    ```bash
-   git add .
-   git commit -m "Initial platform configuration"
-   git push
-   ```
-
-9. Bootstrap Argo CD and enable GitOps:
-
-   ```bash
+   cd ..
    ./scripts/shell/bootstrap-argocd.sh --bootstrap-root-app
    ```
 
-Detailed procedures are available in the documentation linked above.
+8. Allow Argo CD to reconcile the platform components and verify the bootstrap:
+
+   ```bash
+   kubectl get applications -n argocd
+   ./scripts/shell/argocd-git-revision-check.sh --all
+   ```
+
+   Wait until the platform applications are `Synced` and `Healthy` before continuing.
+
+9. Complete the platform deployment.
+
+   Remove the temporary `vultr-kubernetes-platform:bootstrap: true` setting from `infra/Pulumi.prd.yaml`, ensure the required PostgreSQL and application-specific secrets are configured, then run:
+
+   ```bash
+   cd infra
+   pulumi preview
+   pulumi up
+   ```
+
+   If a platform prerequisite is still reconciling and the Pulumi deployment fails, wait for Argo CD to complete the relevant deployment and run `pulumi up` again.
 
 ## License
 
 This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
+
 
 Unless otherwise indicated, all code authored by the project owner, including code committed before the addition of the `LICENSE` file, is made available under the Apache License, Version 2.0.
 
