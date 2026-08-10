@@ -5,11 +5,11 @@
 Install:
 
 - Python 3.10 or newer
+- curl
+- git
 - uv
 - Pulumi CLI
-- Git
 - kubectl
-- curl
 
 Optional:
 
