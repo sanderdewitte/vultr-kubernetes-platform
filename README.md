@@ -251,15 +251,10 @@ Detailed installation instructions are available in the documentation linked abo
 
 Detailed procedures are available in the documentation linked above.
 
-## Current status
+## License
 
-The platform is operational and has successfully deployed its first real application, Authentik, including:
+This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
-- dedicated namespace
-- application Secrets
-- PostgreSQL role and database
-- Argo CD multi-source Application
-- upstream Helm chart
-- Traefik Ingress
-- automatic Let's Encrypt certificate
-- platform-wide HTTP-to-HTTPS redirect
+Unless otherwise indicated, all code authored by the project owner, including code committed before the addition of the `LICENSE` file, is made available under the Apache License, Version 2.0.
+
+See [NOTICE](NOTICE) for copyright information.
