@@ -1,5 +1,6 @@
 config:
   vultr-kubernetes-platform:repository_url: https://github.com/<github-user>/vultr-kubernetes-platform.git
+  vultr-kubernetes-platform:bootstrap: false
   vultr-kubernetes-platform:region: ams
   vultr-kubernetes-platform:cluster_name: vke-prd-01
   vultr-kubernetes-platform:kubernetes_version: v1.35.2+1

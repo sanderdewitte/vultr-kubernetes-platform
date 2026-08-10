@@ -7,7 +7,14 @@ from dotenv import load_dotenv
 
 import pulumi
 
-from constants import HELM_PATH_INDEX_PLACEHOLDER
+from defaults import (
+    DEFAULT_BOOTSTRAP,
+    DEFAULT_REGION,
+    DEFAULT_CLUSTER_NAME,
+    DEFAULT_WORKER_NODE_PLAN,
+    DEFAULT_WORKER_NODE_COUNT,
+    DEFAULT_DNS_TTL,
+)
 from errors import (
     ConfigurationError,
     ConfigurationScope,
@@ -27,6 +34,9 @@ from schema import (
     INGRESS_HELM_PARAMETER_PATH_KEYS,
     OIDC_HELM_PARAMETER_PATH_KEYS,
     REQUIRED_OIDC_SECRET_REQUIREMENTS,
+)
+from constants import (
+    HELM_PATH_INDEX_PLACEHOLDER
 )
 
 INFRA_DIR = Path(__file__).parent
@@ -54,16 +64,19 @@ class Settings:
         self.vultr_api_key = os.environ.get("VULTR_API_KEY")
         self.postgresql_superuser_password = os.environ.get("POSTGRESQL_SUPERUSER_PASSWORD")
         self.postgresql_app_password = os.environ.get("POSTGRESQL_APP_PASSWORD")
+        self.bootstrap_confirmed = os.environ.get("VULTR_KUBERNETES_PLATFORM_BOOTSTRAP_CONFIRM")
 
         config = pulumi.Config()
+        bootstrap = config.get_bool("bootstrap")
 
         self.repository_url = config.require("repository_url")
-        self.region = config.get("region") or "ams"
-        self.cluster_name = config.get("cluster_name") or "vke-prd-01"
+        self.bootstrap = DEFAULT_BOOTSTRAP if bootstrap is None else bootstrap
+        self.region = config.get("region") or DEFAULT_REGION
+        self.cluster_name = config.get("cluster_name") or DEFAULT_CLUSTER_NAME
         self.kubernetes_version = config.require("kubernetes_version")
-        self.worker_node_plan = config.get("worker_node_plan") or "vc2-2c-4gb"
-        self.worker_node_count = config.get_int("worker_node_count") or 1
-        self.dns_ttl = config.get_int("dns_ttl") or 300
+        self.worker_node_plan = config.get("worker_node_plan") or DEFAULT_WORKER_NODE_PLAN
+        self.worker_node_count = config.get_int("worker_node_count") or DEFAULT_WORKER_NODE_COUNT
+        self.dns_ttl = config.get_int("dns_ttl") or DEFAULT_DNS_TTL
         self.domains = config.require_object("domains")
         self.primary_domain_name = self.domains[0].get("name") if self.domains else None
 
@@ -154,21 +167,35 @@ class Settings:
 
     def validate_prerequisites(self) -> None:
 
-        for env_name, value in [
-            ("VULTR_API_KEY", self.vultr_api_key),
-            ("POSTGRESQL_SUPERUSER_PASSWORD", self.postgresql_superuser_password),
-            ("POSTGRESQL_APP_PASSWORD", self.postgresql_app_password),
-        ]:
+        required_prerequisites = [("VULTR_API_KEY", self.vultr_api_key)]
+
+        if not self.bootstrap:
+            required_prerequisites.extend(
+                [
+                    ("POSTGRESQL_SUPERUSER_PASSWORD", self.postgresql_superuser_password),
+                    ("POSTGRESQL_APP_PASSWORD", self.postgresql_app_password),
+                ]
+            )
+        elif not self.bootstrap_confirmed:
+            raise ConfigurationError(
+                message="Bootstrap mode is enabled without explicit confirmation.",
+                hint=(
+                    "Set VULTR_KUBERNETES_PLATFORM_BOOTSTRAP_CONFIRM environment variable "
+                    "(WARNING: set only during the initial platform bootstrap)."
+                ),
+            )
+
+        for env_name, value in required_prerequisites:
             if not value:
                 raise ConfigurationError(
-                    message = f"{env_name} is not set.",
-                    hint = f"Create {SECRETS_FILE.name} or set the environment variable.",
+                    message=f"{env_name} is not set.",
+                    hint=f"Create {SECRETS_FILE.name} or set the environment variable.",
                 )
 
         if self.worker_node_count != 1:
             raise ConfigurationError(
-                message = f"Configured worker_node_count is {self.worker_node_count}.",
-                hint = "This low-cost DNS setup expects exactly one VKE worker node.",
+                message=f"Configured worker_node_count is {self.worker_node_count}.",
+                hint="This low-cost DNS setup expects exactly one VKE worker node.",
             )
 
     def validate_platform_config(self) -> None:
@@ -222,6 +249,11 @@ class Settings:
                 name=domain_name,
                 hint="Set wildcard to true or false.",
             )
+
+        self.validate_domain_dns_config(domain=domain, domain_name=domain_name)
+
+        if self.bootstrap:
+            return
 
         domain_application_entries = domain.get("applications", [])
 
@@ -280,8 +312,6 @@ class Settings:
                 name=domain_name,
                 hint="Add the missing OIDC provider application(s) to this domain's applications list.",
             )
-
-        self.validate_domain_dns_config(domain=domain, domain_name=domain_name)
 
     def validate_domain_application_entry(self, domain_application_entry, domain_name: str) -> None:
 

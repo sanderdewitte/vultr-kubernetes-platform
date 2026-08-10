@@ -20,7 +20,7 @@ from database import create_postgresql_namespace, create_postgresql_cluster, cre
 from apps import create_argocd_applications   # pyright: ignore[reportAttributeAccessIssue]
 from outputs import export_outputs
 
-# Configuration
+# Configuration and validation
 settings = Settings()
 
 # Infrastructure provider
@@ -28,36 +28,41 @@ vultr_provider = create_vultr_provider(settings)
 
 # Kubernetes cluster
 cluster = create_cluster(settings, vultr_provider)
-kubernetes_provider = create_kubernetes_provider(cluster)
 platform_ip = get_first_worker_public_ip(cluster, vultr_provider)
 
 # DNS
 dns_records = create_dns_records(settings, platform_ip, vultr_provider)
 
-# Secrets
-kubernetes_secrets = create_kubernetes_secrets(settings, kubernetes_provider)
+# Create in-cluster resources only after platform bootstrap
+if not settings.bootstrap:
 
-# PostgreSQL platform database cluster
-postgresql_namespace = create_postgresql_namespace(kubernetes_provider)
-postgresql_cluster = create_postgresql_cluster(
-    settings=settings,
-    kubernetes_provider=kubernetes_provider,
-    namespace=postgresql_namespace,
-    postgresql_superuser_secret=kubernetes_secrets[POSTGRESQL_SUPERUSER_SECRET_KEY],
-    postgresql_app_secret=kubernetes_secrets[POSTGRESQL_APP_SECRET_KEY],
-)
-domain_application_databases = create_domain_application_databases(
-    settings=settings,
-    kubernetes_provider=kubernetes_provider,
-    postgresql_cluster=postgresql_cluster,
-)
+    # Kubernetes provider
+    kubernetes_provider = create_kubernetes_provider(cluster)
 
-# Argo CD Applications
-argocd_applications = create_argocd_applications(
-    settings=settings,
-    kubernetes_provider=kubernetes_provider,
-    domain_application_namespaces=kubernetes_secrets[DOMAIN_APPLICATION_NAMESPACES_KEY],
-)
+    # Kubernetes secrets
+    kubernetes_secrets = create_kubernetes_secrets(settings, kubernetes_provider)
+
+    # PostgreSQL platform database cluster
+    postgresql_namespace = create_postgresql_namespace(kubernetes_provider)
+    postgresql_cluster = create_postgresql_cluster(
+        settings=settings,
+        kubernetes_provider=kubernetes_provider,
+        namespace=postgresql_namespace,
+        postgresql_superuser_secret=kubernetes_secrets[POSTGRESQL_SUPERUSER_SECRET_KEY],
+        postgresql_app_secret=kubernetes_secrets[POSTGRESQL_APP_SECRET_KEY],
+    )
+    domain_application_databases = create_domain_application_databases(
+        settings=settings,
+        kubernetes_provider=kubernetes_provider,
+        postgresql_cluster=postgresql_cluster,
+    )
+
+    # Argo CD Applications
+    argocd_applications = create_argocd_applications(
+        settings=settings,
+        kubernetes_provider=kubernetes_provider,
+        domain_application_namespaces=kubernetes_secrets[DOMAIN_APPLICATION_NAMESPACES_KEY],
+    )
 
 # Outputs
 export_outputs(cluster, platform_ip, dns_records)
