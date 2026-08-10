@@ -14,3 +14,4 @@
 - Add metrics-server
 - Add manually triggered GitHub Actions for Pulumi preview
 - Optionally add approved Pulumi up workflow
+- Make the configured repository URL the single source of truth for Argo CD platform Applications
