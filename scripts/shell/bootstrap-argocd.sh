@@ -15,6 +15,8 @@ ROOT_APPLICATION_FILE="${REPO_ROOT}/platform/bootstrap/root-application.yaml"
 # =========================
 
 ARGOCD_NAMESPACE="argocd"
+ARGOCD_DEPLOYMENT="argocd-server"
+ARGOCD_SERVICE="$ARGOCD_DEPLOYMENT"
 ARGOCD_VERSION="v3.2.0"
 ARGOCD_INSTALL_URL="https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
 
@@ -24,7 +26,7 @@ ARGOCD_INSTALL_URL="https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_
 
 FORCE_REINSTALL="false"
 BOOTSTRAP_ROOT_APP="false"
-ROLLOUT_TIMEOUT="300s"
+TIMEOUT_BASE_SECONDS=300
 PULUMI_STACK="prd"
 INFRA_CONFIG_FILE=""
 DEFAULT_KUBECONFIG="${HOME}/.kube/config"
@@ -66,32 +68,34 @@ usage() {
 Usage: $SCRIPT_NAME [options]
 
 Options:
-  --bootstrap-root-app  Apply the Argo CD root application
-  --force-reinstall     Re-apply the Argo CD install manifest even if Argo CD exists
-  --timeout VALUE       Rollout timeout for argocd-server (e.g. 300s, 10m, default: 300s)
-  --stack VALUE         Pulumi stack name used to read infra/Pulumi.<stack>.yaml (default: prd)
-  -h, --help            Show this help
+  -b, --bootstrap-root-app  Apply the Argo CD root application
+  -f, --force-reinstall     Re-apply the Argo CD install manifest even if Argo CD exists
+  -t, --timeout SECONDS     Base timeout in seconds (default: 300)
+  -s, --stack VALUE         Pulumi stack name used to read infra/Pulumi.<stack>.yaml (default: prd)
+  -h, --help                Show this help
 EOF
 }
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --bootstrap-root-app)
+      -b|--bootstrap-root-app)
         BOOTSTRAP_ROOT_APP="true"
         shift
         ;;
-      --force-reinstall)
+      -f|--force-reinstall)
         FORCE_REINSTALL="true"
         shift
         ;;
-      --timeout)
+      -t|--timeout)
         [[ $# -ge 2 ]] || fail "Missing value for --timeout"
-        ROLLOUT_TIMEOUT="$2"
+        [[ "$2" =~ ^[1-9][0-9]*$ ]] || fail "--timeout must be a positive integer number of seconds"
+        TIMEOUT_BASE_SECONDS="$2"
         shift 2
         ;;
-      --stack)
+      -s|--stack)
         [[ $# -ge 2 ]] || fail "Missing value for --stack"
+        [[ "$2" =~ ^[a-zA-Z0-9_-]+$ ]] || fail "--stack must contain only letters, numbers, hyphens or underscores"
         PULUMI_STACK="$2"
         shift 2
         ;;
@@ -115,16 +119,30 @@ require_command() {
 }
 
 namespace_exists() {
-  kubectl get namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1
+  kubectl get namespace "$1" >/dev/null 2>&1
 }
 
-argocd_installed() {
-  kubectl get deployment argocd-server -n "$ARGOCD_NAMESPACE" >/dev/null 2>&1
+deployment_exists() {
+  local namespace="$1"
+  local deployment="$2"
+  kubectl get deployment "$deployment" -n "$namespace" >/dev/null 2>&1
+}
+
+argocd_namespace_exists() {
+  namespace_exists "$ARGOCD_NAMESPACE"
+}
+
+argocd_deployed() {
+  deployment_exists "$ARGOCD_NAMESPACE" "$ARGOCD_DEPLOYMENT"
 }
 
 # =========================
 # Core functions
 # =========================
+
+set_timeouts() {
+  ROLLOUT_TIMEOUT="${TIMEOUT_BASE_SECONDS}s"
+}
 
 set_working_directory() {
   local start_dir
@@ -214,8 +232,8 @@ check_repository_urls() {
   log "Argo CD Git repository URLs are consistent"
 }
 
-ensure_namespace() {
-  if namespace_exists; then
+ensure_argocd_namespace() {
+  if argocd_namespace_exists; then
     log "Namespace '${ARGOCD_NAMESPACE}' already exists"
   else
     log "Creating namespace: ${ARGOCD_NAMESPACE}"
@@ -224,7 +242,7 @@ ensure_namespace() {
 }
 
 install_argocd() {
-  if argocd_installed && [[ "$FORCE_REINSTALL" != "true" ]]; then
+  if argocd_deployed && [[ "$FORCE_REINSTALL" != "true" ]]; then
     log "Argo CD already installed in namespace '${ARGOCD_NAMESPACE}'"
   else
     if [[ "$FORCE_REINSTALL" == "true" ]]; then
@@ -239,7 +257,7 @@ install_argocd() {
 wait_for_argocd() {
   local output
   log "Waiting for Argo CD server deployment (timeout: ${ROLLOUT_TIMEOUT})"
-  if ! output=$(kubectl rollout status deployment/argocd-server -n "$ARGOCD_NAMESPACE" --timeout="$ROLLOUT_TIMEOUT" 2>&1); then
+  if ! output=$(kubectl rollout status "deployment/${ARGOCD_DEPLOYMENT}" -n "$ARGOCD_NAMESPACE" --timeout="$ROLLOUT_TIMEOUT" 2>&1); then
     printf '%s\n' "$output" | log_multiline
     fail "Rollout failed"
   fi
@@ -271,7 +289,7 @@ post_checks() {
 
 print_next_steps() {
   log "Access UI with:"
-  log "kubectl port-forward svc/argocd-server -n ${ARGOCD_NAMESPACE} 8080:443"
+  log "kubectl port-forward svc/${ARGOCD_SERVICE} -n ${ARGOCD_NAMESPACE} 8080:443"
   log "Then open in your browser:"
   log "https://localhost:8080"
   log "Login with:"
@@ -292,16 +310,18 @@ print_next_steps() {
 
 main() {
   parse_args "$@"
+  set_timeouts
   set_working_directory
   set_infra_config_file
   set_kubeconfig
   check_requirements
   check_cluster_access
   check_repository_urls
-  ensure_namespace
+  ensure_argocd_namespace
   install_argocd
   wait_for_argocd
   bootstrap_root_application
+
   post_checks
   print_next_steps
 }
