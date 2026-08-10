@@ -12,7 +12,7 @@ class ConfigurationError(ValueError):
 
     def __init__(self, message: str, *, scope: ConfigurationScope = ConfigurationScope.PLATFORM, name: str | None = None, hint: str | None = None) -> None:
 
-        error_message = scope.value
+        error_message = f"\n{scope.value}"
 
         if name:
             error_message += f" '{name}'"
