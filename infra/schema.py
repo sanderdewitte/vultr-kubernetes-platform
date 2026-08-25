@@ -1,6 +1,12 @@
 ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_KEYS = {
     "host_prefix",
+    "image",
     "authentication",
+}
+
+ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_IMAGE_KEYS = {
+    "repository",
+    "tag",
 }
 
 ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_AUTH_KEYS = {
@@ -37,8 +43,14 @@ ALLOWED_AUTH_OIDC_KEYS = {
 }
 
 ALLOWED_CHART_KEYS = {
+    "source",
     "repository_url",
     "version",
+}
+
+IMAGE_HELM_PARAMETER_PATH_KEYS = {
+    "image_repository",
+    "image_tag",
 }
 
 DATABASE_IDENTIFIER_HELM_PARAMETER_PATH_KEYS = {
@@ -53,7 +65,8 @@ INGRESS_HELM_PARAMETER_PATH_KEYS = {
 }
 
 OIDC_HELM_PARAMETER_PATH_KEYS = {
-    "providers",
+    "provider_type",
+    "identity_provider",
     "issuer",
     "client_name",
     "scope",
@@ -67,7 +80,8 @@ REQUIRED_OIDC_SECRET_REQUIREMENTS = {
 }
 
 SINGLE_VALUE_HELM_PARAMETER_PATH_KEYS = (
-    DATABASE_IDENTIFIER_HELM_PARAMETER_PATH_KEYS
+    IMAGE_HELM_PARAMETER_PATH_KEYS
+    | DATABASE_IDENTIFIER_HELM_PARAMETER_PATH_KEYS
     | OIDC_HELM_PARAMETER_PATH_KEYS
 )
 

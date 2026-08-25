@@ -21,6 +21,7 @@ from errors import (
 )
 from schema import (
     ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_KEYS,
+    ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_IMAGE_KEYS,
     ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_AUTH_KEYS,
     ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_AUTH_OIDC_KEYS,
     ALLOWED_APPLICATION_KEYS,
@@ -30,6 +31,7 @@ from schema import (
     ALLOWED_CHART_KEYS,
     ALLOWED_HELM_PARAMETER_PATH_KEYS,
     EXPECTED_HELM_PARAMETER_PATH_INDEX_COUNTS,
+    IMAGE_HELM_PARAMETER_PATH_KEYS,
     DATABASE_IDENTIFIER_HELM_PARAMETER_PATH_KEYS,
     INGRESS_HELM_PARAMETER_PATH_KEYS,
     OIDC_HELM_PARAMETER_PATH_KEYS,
@@ -365,7 +367,7 @@ class Settings:
 
         self.validate_allowed_keys("application domain deployment", application_domain_deployment_config, ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_KEYS, application_name)
 
-        host_prefix = application_domain_deployment_config.get( "host_prefix")
+        host_prefix = application_domain_deployment_config.get("host_prefix")
 
         if host_prefix is not None and (not isinstance(host_prefix, str) or not host_prefix.strip()):
             raise ConfigurationError(
@@ -374,6 +376,47 @@ class Settings:
                 name=domain_name,
                 hint="Set host_prefix to a non-empty hostname prefix.",
             )
+
+        image = application_domain_deployment_config.get("image", {})
+
+        if not isinstance(image, dict):
+            raise ConfigurationError(
+                message="image is not a dictionary.",
+                scope=ConfigurationScope.DOMAIN,
+                name=domain_name,
+                hint="Define image as a YAML mapping containing repository and tag.",
+            )
+
+        self.validate_allowed_keys("image", image, ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_IMAGE_KEYS, application_name)
+
+        if "image" in application_domain_deployment_config:
+
+            for image_key in ALLOWED_APPLICATION_DOMAIN_DEPLOYMENT_IMAGE_KEYS:
+
+                image_value = image.get(image_key)
+
+                if not isinstance(image_value, str) or not image_value.strip():
+                    raise ConfigurationError(
+                        message=f"image.{image_key} is not a non-empty string.",
+                        scope=ConfigurationScope.DOMAIN,
+                        name=domain_name,
+                        hint=f"Set image.{image_key} to a non-empty string.",
+                    )
+
+            helm_parameter_paths = application_config.get("helm_parameter_paths", {})
+
+            configured_image_parameter_paths = IMAGE_HELM_PARAMETER_PATH_KEYS & set(helm_parameter_paths)
+
+            if configured_image_parameter_paths != IMAGE_HELM_PARAMETER_PATH_KEYS:
+
+                missing_parameter_paths = IMAGE_HELM_PARAMETER_PATH_KEYS - configured_image_parameter_paths
+
+                raise ConfigurationError(
+                    message="Image deployment configuration is enabled, but the application catalog does not define all required image Helm parameter paths.",
+                    scope=ConfigurationScope.APPLICATION,
+                    name=application_name,
+                    hint=f"Configure the following missing Helm parameter path(s) for '{application_name}': {', '.join(sorted(missing_parameter_paths))}.",
+                )
 
         authentication = application_domain_deployment_config.get("authentication", {})
 
@@ -687,17 +730,6 @@ class Settings:
                         hint=f"Use exactly {expected_index_count} '{HELM_PATH_INDEX_PLACEHOLDER}' index placeholder(s) in this parameter path.",
                     )
 
-            configured_oidc_helm_parameters = set(oidc_helm_parameter_paths)
-
-            if configured_oidc_helm_parameters != OIDC_HELM_PARAMETER_PATH_KEYS:
-                missing_parameters = OIDC_HELM_PARAMETER_PATH_KEYS - configured_oidc_helm_parameters
-                raise ConfigurationError(
-                    message="OIDC Helm parameter paths are incomplete.",
-                    scope=ConfigurationScope.APPLICATION,
-                    name=application_name,
-                    hint=f"Configure the following missing parameter path(s): {', '.join(sorted(missing_parameters))}.",
-                )
-
         chart_config = application_config["chart"]
 
         if not isinstance(chart_config, dict):
@@ -709,6 +741,36 @@ class Settings:
             )
 
         self.validate_allowed_keys("chart", chart_config, ALLOWED_CHART_KEYS, application_name)
+
+        chart_source = chart_config.get("source", "remote")
+
+        if chart_source not in {"remote", "local"}:
+            raise ConfigurationError(
+                message=f"chart.source has unsupported value '{chart_source}'.",
+                scope=ConfigurationScope.APPLICATION,
+                name=application_name,
+                hint="Set chart.source to 'remote' or 'local', or omit it to use the default ('remote').",
+            )
+
+        if chart_source == "remote":
+            for key in ("repository_url", "version"):
+                value = chart_config.get(key)
+                if not isinstance(value, str) or not value.strip():
+                    raise ConfigurationError(
+                        message=f"chart.{key} is not a non-empty string.",
+                        scope=ConfigurationScope.APPLICATION,
+                        name=application_name,
+                        hint=f"Set chart.{key} for a remote Helm chart.",
+                    )
+        else:
+            for key in ("repository_url", "version"):
+                if key in chart_config:
+                    raise ConfigurationError(
+                        message=f"chart.{key} is configured for a local Helm chart.",
+                        scope=ConfigurationScope.APPLICATION,
+                        name=application_name,
+                        hint=f"Remove chart.{key}; local charts are loaded from apps/{application_name}/.",
+                    )
 
         helm_parameter_paths = application_config.get("helm_parameter_paths", {})
 

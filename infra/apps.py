@@ -54,6 +54,23 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
             helm_parameter_paths = application_config.get("helm_parameter_paths", {})
             helm_parameters = []
 
+            image_config = application_config.get("image", {})
+
+            if image_config:
+
+                image_helm_parameter_values = {
+                    "image_repository": image_config["repository"],
+                    "image_tag": image_config["tag"],
+                }
+
+                for parameter_name, parameter_value in image_helm_parameter_values.items():
+                    helm_parameters.append(
+                        {
+                            "name": helm_parameter_paths[parameter_name],
+                            "value": parameter_value,
+                        }
+                    )
+
             database_config = application_config.get("database", {})
 
             if database_config.get("enabled", False):
@@ -97,7 +114,8 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                 oidc_client_name = oidc_config.get("display_name", settings.identifier_to_display_name(identity_provider))
 
                 oidc_helm_parameter_values = {
-                    "providers": "oidc",
+                    "provider_type": "oidc",
+                    "identity_provider": identity_provider,
                     "issuer": oidc_issuer,
                     "client_name": oidc_client_name,
                     "scope": "openid email profile groups",
@@ -106,12 +124,13 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                 }
 
                 for parameter_name, parameter_value in oidc_helm_parameter_values.items():
-                    helm_parameters.append(
-                        {
-                            "name": oidc_helm_parameter_paths[parameter_name],
-                            "value": parameter_value,
-                        }
-                    )
+                    if parameter_name in oidc_helm_parameter_paths:
+                        helm_parameters.append(
+                            {
+                                "name": oidc_helm_parameter_paths[parameter_name],
+                                "value": parameter_value,
+                            }
+                        )
 
             if "ingress_host" in helm_parameter_paths:
 
@@ -142,6 +161,53 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                         )
 
             chart = application_config["chart"]
+            chart_source = chart.get("source", "remote")
+            argocd_sources = []
+
+            if chart_source == "local":
+                helm_parameters.extend(
+                    [
+                        {
+                            "name": "env.APPLICATION_HOSTS",
+                            "value": hostname,
+                        },
+                        {
+                            "name": "env.APPLICATION_BASE_URL",
+                            "value": f"https://{hostname}",
+                        },
+                    ]
+                )
+                argocd_sources = [
+                    {
+                        "repoURL": settings.repository_url,
+                        "targetRevision": "main",
+                        "path": f"apps/{domain_application}",
+                        "helm": {
+                            "parameters": helm_parameters,
+                        },
+                    },
+                ]
+            else:
+                argocd_sources = [
+                    {
+                        "repoURL": chart["repository_url"],
+                        "chart": domain_application,
+                        "targetRevision": chart["version"],
+                        "helm": {
+                            "valueFiles": [
+                                "$values/"
+                                f"apps/{domain_application}"
+                                "/values.yaml",
+                            ],
+                            "parameters": helm_parameters,
+                        },
+                    },
+                    {
+                        "repoURL": settings.repository_url,
+                        "targetRevision": "main",
+                        "ref": "values",
+                    },
+                ]
 
             namespace_name = get_domain_application_namespace(
                 settings=settings,
@@ -165,34 +231,9 @@ def create_argocd_applications(settings, kubernetes_provider, domain_application
                     },
                     spec={
                         "project": "default",
-                        "sources": [
-                            {
-                                "repoURL": chart["repository_url"],
-                                "chart": domain_application,
-                                "targetRevision": chart["version"],
-                                "helm": {
-                                    "valueFiles": [
-                                        "$values/"
-                                        f"apps/{domain_application}"
-                                        "/values.yaml",
-                                    ],
-                                    "parameters": (
-                                        helm_parameters
-                                    ),
-                                },
-                            },
-                            {
-                                "repoURL": (
-                                    settings.repository_url
-                                ),
-                                "targetRevision": "main",
-                                "ref": "values",
-                            },
-                        ],
+                        "sources": argocd_sources,
                         "destination": {
-                            "server": (
-                                "https://kubernetes.default.svc"
-                            ),
+                            "server": "https://kubernetes.default.svc",
                             "namespace": namespace_name,
                         },
                         "syncPolicy": {

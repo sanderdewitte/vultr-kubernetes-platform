@@ -28,7 +28,7 @@ homarr:
         - client_id
         - client_secret
       helm_parameter_paths:
-        providers: env.AUTH_PROVIDERS
+        provider_type: env.AUTH_PROVIDERS
         issuer: env.AUTH_OIDC_ISSUER
         client_name: env.AUTH_OIDC_CLIENT_NAME
         scope: env.AUTH_OIDC_SCOPE_OVERWRITE
