@@ -45,3 +45,34 @@ homarr:
     ingress_host: ingress.hosts[?].host
     ingress_tls_secret: ingress.tls[?].secretName
     ingress_tls_host: ingress.tls[?].hosts[?]
+
+wagtail:
+  namespace: true
+  database:
+    enabled: true
+    connection_url_secret: true
+  authentication:
+    oidc:
+      display_name: SSO
+      secret_requirements:
+        - client_id
+        - client_secret
+      helm_parameter_paths:
+        identity_provider: env.OIDC_PROVIDER_ID
+        issuer: env.OIDC_ISSUER
+        client_name: env.OIDC_CLIENT_NAME
+        scope: env.OIDC_SCOPE
+        groups_attribute: env.OIDC_GROUPS_ATTRIBUTE
+        logout_redirect_url: env.OIDC_LOGOUT_REDIRECT_URL
+  chart:
+    source: local
+  default_host_prefix: www
+  secret_requirements:
+    - postgresql_password
+    - django_secret_key
+  helm_parameter_paths:
+    image_repository: image.repository
+    image_tag: image.tag
+    ingress_host: ingress.hosts[?].host
+    ingress_tls_secret: ingress.tls[?].secretName
+    ingress_tls_host: ingress.tls[?].hosts[?]

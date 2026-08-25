@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-predeploy-{{ printf "%s:%s" .Values.image.repository .Values.image.tag | sha256sum | trunc 8 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: predeploy
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - /app/scripts/shell/predeploy.sh
+          env:
+            {{- include "wagtail.env" . | nindent 12 }}

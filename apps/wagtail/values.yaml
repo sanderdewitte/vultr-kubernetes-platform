@@ -1,0 +1,35 @@
+replicaCount: 1
+
+envSecrets:
+  database:
+    existingSecret: wagtail-postgresql-url
+    urlKey: url
+  django:
+    existingSecret: wagtail-django-secret-key
+    secretKey: django-secret-key
+  oidc:
+    existingSecret: wagtail-oidc-credentials
+    clientIdKey: client-id
+    clientSecretKey: client-secret
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+
+media:
+  mountPath: /app/media
+  storageSize: 1Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
