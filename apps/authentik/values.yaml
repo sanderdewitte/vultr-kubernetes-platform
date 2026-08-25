@@ -25,6 +25,11 @@ postgresql:
 
 server:
   replicas: 1
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-production
   resources:
     requests:
       cpu: 100m
@@ -32,11 +37,6 @@ server:
     limits:
       cpu: 500m
       memory: 1Gi
-  ingress:
-    enabled: true
-    ingressClassName: traefik
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-production
 
 worker:
   replicas: 1

@@ -27,6 +27,19 @@ Application-specific Helm values remain under:
 apps/<application>/values.yaml
 ```
 
+Where comparable, application's `values.yaml` files should use a consistent section order to improve readability:
+
+1. scaling and workload configuration
+2. environment and application configuration
+3. database and external services
+4. secrets
+5. service
+6. ingress
+7. persistence and storage
+8. resources
+
+This ordering is guidance rather than a strict schema. Upstream chart structure and application-specific requirements take precedence.
+
 Pulumi generates deployment-specific values such as hostnames, TLS Secret names, database identifiers and OpenID Connect (OIDC) settings.
 Argo CD deploys the application from its upstream Helm chart together with the values stored in Git.
 
