@@ -2,9 +2,11 @@
 
 ## Near term
 
-- Add a second domain with Drupal and validate multi-domain behavior end-to-end
+- Deploy a Wagtail CMS website and validate multi-domain behavior end-to-end
+- Add WebDAV as an application using plain Kubernetes manifests and validate the non-Helm application deployment path
 - Publish selected management interfaces through Traefik
 - Configure PostgreSQL backups
+- Add an automatic pre-migration PostgreSQL backup before Wagtail database migrations during application deployment
 - Document backup restore testing
 - Add automated tests for configuration validation and helper logic
 - Add integration-style tests for generated application configuration
