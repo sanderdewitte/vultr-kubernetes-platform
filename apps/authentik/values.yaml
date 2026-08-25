@@ -24,6 +24,7 @@ postgresql:
   enabled: false
 
 server:
+  replicas: 1
   resources:
     requests:
       cpu: 100m
@@ -38,6 +39,7 @@ server:
       cert-manager.io/cluster-issuer: letsencrypt-production
 
 worker:
+  replicas: 1
   resources:
     requests:
       cpu: 100m
