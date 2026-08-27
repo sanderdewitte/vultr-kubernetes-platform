@@ -1,3 +1,4 @@
+from base64 import b64encode
 from urllib.parse import quote
 
 import pulumi
@@ -21,6 +22,13 @@ from app_naming import (
 )
 
 
+def encode_kubernetes_secret_value(secret_value: pulumi.Input[str]) -> pulumi.Output[str]:
+
+    return pulumi.Output.secret(secret_value).apply(
+        lambda value: b64encode(value.encode("utf-8")).decode("ascii")
+    )
+
+
 def create_domain_application_database_secret(settings, kubernetes_provider, domain_application: str, domain_name: str) -> tuple[str, k8s.core.v1.Secret]:
 
     database_identifier = get_domain_application_database_identifier(
@@ -41,14 +49,14 @@ def create_domain_application_database_secret(settings, kubernetes_provider, dom
             "name": database_secret_name,
             "namespace": PLATFORM_DATABASE_NAMESPACE,
         },
-        string_data={
-            "username": database_identifier,
-            "password": pulumi.Output.secret(
+        data={
+            "username": encode_kubernetes_secret_value(database_identifier),
+            "password": encode_kubernetes_secret_value(
                 settings.get_domain_secret(
                     application=domain_application,
                     domain_name=domain_name,
                     secret_name="postgresql_password",
-                )
+                ),
             ),
         },
         type="kubernetes.io/basic-auth",
@@ -109,8 +117,8 @@ def create_domain_application_database_url_secret(settings, kubernetes_provider,
             "name": database_url_secret_name,
             "namespace": namespace_name,
         },
-        string_data={
-            database_secret_key: database_url,
+        data={
+            database_secret_key: encode_kubernetes_secret_value(database_url),
         },
         type="Opaque",
         opts=pulumi.ResourceOptions(
@@ -157,8 +165,8 @@ def create_domain_application_secret(settings, kubernetes_provider, domain_appli
             "name": kubernetes_secret_name,
             "namespace": namespace_name,
         },
-        string_data={
-            secret_key: pulumi.Output.secret(secret_value)
+        data={
+            secret_key: encode_kubernetes_secret_value(secret_value)
             for secret_key, secret_value in secret_data.items()
         },
         type="Opaque",
@@ -182,8 +190,8 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
             "name": vultr_credentials_secret_name,
             "namespace": CERT_MANAGER_NAMESPACE,
         },
-        string_data={
-            "apiKey": pulumi.Output.secret(settings.vultr_api_key),
+        data={
+            "apiKey": encode_kubernetes_secret_value(settings.vultr_api_key),
         },
         type="Opaque",
         opts=pulumi.ResourceOptions(
@@ -199,9 +207,9 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
             "name": postgresql_superuser_secret_name,
             "namespace": PLATFORM_DATABASE_NAMESPACE,
         },
-        string_data={
-            "username": "postgres",
-            "password": pulumi.Output.secret(settings.postgresql_superuser_password),
+        data={
+            "username": encode_kubernetes_secret_value("postgres"),
+            "password": encode_kubernetes_secret_value(settings.postgresql_superuser_password),
         },
         type="kubernetes.io/basic-auth",
         opts=pulumi.ResourceOptions(
@@ -217,9 +225,9 @@ def create_kubernetes_secrets(settings, kubernetes_provider) -> dict:
             "name": postgresql_app_secret_name,
             "namespace": PLATFORM_DATABASE_NAMESPACE,
         },
-        string_data={
-            "username": "platform",
-            "password": pulumi.Output.secret(settings.postgresql_app_password),
+        data={
+            "username": encode_kubernetes_secret_value("platform"),
+            "password": encode_kubernetes_secret_value(settings.postgresql_app_password),
         },
         type="kubernetes.io/basic-auth",
         opts=pulumi.ResourceOptions(
