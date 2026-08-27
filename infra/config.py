@@ -675,6 +675,16 @@ class Settings:
                         hint="Use a non-empty string for every entry in authentication.oidc.secret_requirements.",
                     )
 
+                env_name = self.get_domain_secret_env_name(application=application_name, domain_name=domain_name, secret_name=secret_name)
+
+                if not os.environ.get(env_name):
+                    raise ConfigurationError(
+                        message=f"{env_name} is not set.",
+                        scope=ConfigurationScope.APPLICATION,
+                        name=application_name,
+                        hint=f"Add {env_name} to {SECRETS_FILE.name} or set the environment variable.",
+                    )
+
             configured_oidc_secret_requirements = set(oidc_secret_requirements)
 
             if configured_oidc_secret_requirements != REQUIRED_OIDC_SECRET_REQUIREMENTS:
