@@ -17,3 +17,4 @@
 - Add manually triggered GitHub Actions for Pulumi preview
 - Optionally add approved Pulumi up workflow
 - Make the configured repository URL the single source of truth for Argo CD platform Applications
+- Renovate integration – Investigate using Renovate to automatically detect updates for application Helm charts, container images, and other platform dependencies, and propose version updates through pull requests.
