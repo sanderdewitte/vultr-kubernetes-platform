@@ -119,12 +119,19 @@ Applications therefore become a configuration choice rather than a deployment ta
 
 Currently implemented or planned:
 
-| Application    | Purpose                            | Suggested host prefix | Status         |
-| -------------- | ---------------------------------- | --------------------- | -------------- |
-| Authentik      | Identity provider (SSO)            | `auth`                | ✅ Implemented |
-| Homarr         | Homepage and application dashboard | `www`                 | ✅ Implemented |
-| Drupal         | Website CMS                        | `www`                 | 🔄 In progress |
-| Metrics Server | Container resource metrics for k8s | `monitor`             | 📋 Planned     |
+| Application    | Purpose                            | Suggested host prefix | Deployment method           | Status         |
+| -------------- | ---------------------------------- | --------------------- | --------------------------- | -------------- |
+| Authentik      | Identity provider (SSO)            | `auth`                | Remote Helm chart           | ✅ Implemented |
+| Homarr         | Homepage and application dashboard | `www`                 | Remote Helm chart           | ✅ Implemented |
+| Wagtail        | Website CMS                        | `www`                 | Local Helm chart            | ✅ Implemented |
+| WebDAV         | File synchronization               | `webdav`              | Direct Kubernetes resources | 🔄 In progress |
+| Metrics Server | Container resource metrics for k8s | `monitor`             | Remote Helm chart           | 📋 Planned     |
+
+Applications can be deployed using one of three methods:
+
+- **Remote Helm chart** — an upstream Helm chart retrieved from a configured Helm repository.
+- **Local Helm chart** — a Helm chart maintained as part of this repository, for applications requiring platform-specific deployment logic.
+- **Direct Kubernetes resources** — Kubernetes resources managed directly by Pulumi without using Helm.
 
 ## Repository layout
 
