@@ -108,7 +108,8 @@ config:
         - homarr
     - name: example.org
       applications:
-        - drupal
+        - authentik
+        - wagtail
 ```
 
 Pulumi automatically provisions the required namespaces, secrets, databases and Argo CD Applications for the selected applications.
